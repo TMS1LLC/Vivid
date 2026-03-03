@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>VIVID ONE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+:root {
+  --green: #00ff41;
+  --safe-bottom: env(safe-area-inset-bottom,0px);
+  --safe-top: env(safe-area-inset-top,0px);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { width:100%; height:100%; overflow:hidden; background:#000; }
+canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
+
+/* TOP BAR */
+#topbar {
+  position:fixed; top:calc(12px + var(--safe-top)); left:0; right:0;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0 16px; z-index:20; pointer-events:none;
+}
+#logo {
+  font-family:'Orbitron',monospace; font-size:13px;
+  color:var(--green); letter-spacing:0.4em;
+  text-shadow:0 0 10px var(--green);
+}
+#toggle-ui {
+  width:36px; height:36px; background:rgba(0,255,65,0.08);
+  border:1px solid rgba(0,255,65,0.3); border-radius:3px; color:var(--green);
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; z-index:20; pointer-events:all;
+}
+
+/* FLOW METER */
+#flow-meter {
+  position:fixed; right:14px; top:50%; transform:translateY(-50%);
+  width:3px; height:120px; background:rgba(0,255,65,0.1);
+  border:1px solid rgba(0,255,65,0.2); z-index:15; border-radius:2px; overflow:hidden;
+}
+#flow-fill {
+  position:absolute; bottom:0; left:0; right:0;
+  background:linear-gradient(to top,#00ff41,#fff);
+  transition:height 0.1s; box-shadow:0 0 8px #00ff41;
+}
+
+/* MODE NAME */
+#mode-display {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-60%);
+  text-align:center; z-index:10; pointer-events:none;
+  transition:all 0.5s;
+}
+#mode-name {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(18px,4vw,42px); font-weight:700;
+  color:rgba(255,255,255,0.08); letter-spacing:0.15em;
+  text-shadow:none; transition:all 0.5s;
+}
+#mode-name.active {
+  color:#fff;
+  text-shadow:0 0 20px var(--green), 0 0 60px rgba(0,255,65,0.3);
+}
+
+/* CAPTIONS */
+#captions {
+  position:fixed; bottom:180px; left:50%; transform:translateX(-50%);
+  width:80%; max-width:700px; text-align:center; z-index:15;
+  pointer-events:none; min-height:60px;
+}
+#caption-text {
+  font-family:'Share Tech Mono',monospace; font-size:16px;
+  color:rgba(255,255,255,0.9); letter-spacing:0.05em;
+  line-height:1.6; text-shadow:0 0 10px rgba(0,255,65,0.5);
+  background:rgba(0,0,0,0.4); padding:8px 16px; border-radius:4px;
+  border-left:2px solid var(--green);
+  transition:opacity 0.3s;
+  opacity:0;
+}
+#caption-text.visible { opacity:1; }
+
+/* BOTTOM UI */
+#ui {
+  position:fixed; bottom:0; left:0; right:0;
+  padding:10px 12px calc(10px + var(--safe-bottom));
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  background:linear-gradient(transparent, rgba(0,8,0,0.95));
+  z-index:10; transition:opacity 0.5s;
+}
+#ui.hidden { opacity:0; pointer-events:none; }
+
+/* CAROUSEL */
+#carousel-wrap { width:100%; }
+#carousel {
+  display:flex; gap:10px;
+  padding:0 calc(50% - 55px);
+  overflow-x:scroll; scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  cursor:grab;
+}
+#carousel::-webkit-scrollbar { display:none; }
+#carousel.grabbing { cursor:grabbing; }
+
+.mode-card {
+  flex:0 0 110px; height:75px; border-radius:5px;
+  border:1px solid rgba(0,255,65,0.2);
+  background:rgba(0,255,65,0.04);
+  scroll-snap-align:center; cursor:pointer;
+  transition:all 0.3s ease;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px;
+  position:relative; overflow:hidden;
+}
+.mode-card.active {
+  border-color:var(--green);
+  background:rgba(0,255,65,0.12);
+  box-shadow:0 0 16px rgba(0,255,65,0.3);
+  transform:translateY(-6px) scale(1.06);
+}
+.card-icon { font-size:20px; z-index:2; }
+.card-label {
+  font-size:8px; color:rgba(0,255,65,0.7);
+  letter-spacing:0.08em; text-transform:uppercase;
+  z-index:2; text-align:center; padding:0 4px;
+  font-family:'Share Tech Mono',monospace;
+}
+.mode-card.active .card-label { color:#fff; }
+
+/* DOTS */
+#dots { display:flex; justify-content:center; gap:5px; margin-top:6px; }
+.dot { width:4px; height:4px; border-radius:50%; background:rgba(0,255,65,0.2); transition:all 0.3s; }
+.dot.active { background:var(--green); box-shadow:0 0 6px var(--green); width:14px; border-radius:2px; }
+
+/* AUDIO BUTTONS */
+.btn-row { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+button {
+  background:rgba(0,255,65,0.07); border:1px solid rgba(0,255,65,0.3);
+  color:var(--green); padding:8px 16px; border-radius:3px; cursor:pointer;
+  font-size:11px; font-family:'Share Tech Mono',monospace;
+  min-height:34px; letter-spacing:0.05em; text-transform:uppercase;
+  transition:all 0.15s; -webkit-appearance:none;
+}
+button:hover { background:rgba(0,255,65,0.18); border-color:var(--green); }
+button.active { background:rgba(0,255,65,0.22); border-color:var(--green); color:#fff; box-shadow:0 0 10px rgba(0,255,65,0.35); }
+
+#status {
+  color:rgba(0,255,65,0.5); font-size:10px;
+  font-family:'Share Tech Mono',monospace;
+  letter-spacing:0.1em; text-transform:uppercase;
+}
+#status.live { color:var(--green); text-shadow:0 0 8px var(--green); }
+#status.error { color:#ff4141; }
+#status.flow { color:#fff; text-shadow:0 0 20px #fff, 0 0 40px rgba(0,255,65,0.8); }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<div id="topbar">
+  <div id="logo">VIVID ONE</div>
+  <div id="toggle-ui">x</div>
+</div>
+
+<div id="flow-meter"><div id="flow-fill" style="height:0%"></div></div>
+
+<div id="mode-display">
+  <div id="mode-name">BRAINWAVE</div>
+</div>
+
+<div id="captions">
+  <div id="caption-text"></div>
+</div>
+
+<div id="ui">
+  <div id="carousel-wrap">
+    <div id="carousel"></div>
+    <div id="dots"></div>
+  </div>
+  <div class="btn-row">
+    <button onclick="startDemo()" id="btn-demo">DEMO</button>
+    <button onclick="startMic()" id="btn-mic">MIC</button>
+    <button onclick="startTabAudio()" id="btn-tab">TAB AUDIO</button>
+    <button onclick="toggleCaptions()" id="btn-cap">CC OFF</button>
+  </div>
+  <div id="status">_ awaiting signal _</div>
+</div>
+
+<script>
+// ============================================================
+// MODES
+// ============================================================
+const MODES = [
+  { name:'Brainwave',    icon:'∿', color:'#00ff41', draw:drawBrainwave },
+  { name:'Matrix Rain',  icon:'⬡', color:'#00ff41', draw:drawMatrixRain },
+  { name:'Nebula',       icon:'✦', color:'#aa44ff', draw:drawNebula },
+  { name:'Black Hole',   icon:'◉', color:'#440088', draw:drawBlackHole },
+  { name:'Solar Storm',  icon:'☀', color:'#ff8800', draw:drawSolarStorm },
+  { name:'Aurora',       icon:'❋', color:'#44ff88', draw:drawAurora },
+  { name:'Star Field',   icon:'★', color:'#ffffff', draw:drawStarField },
+  { name:'Ocean Waves',  icon:'〰', color:'#00aaff', draw:drawOcean },
+  { name:'Volcano',      icon:'▲', color:'#ff4400', draw:drawVolcano },
+  { name:'Mandelbrot',   icon:'◈', color:'#ffcc00', draw:drawMandelbrot },
+];
+
+// ============================================================
+// CANVAS + RESIZE
+// ============================================================
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = canvas.width = window.innerWidth * DPR;
+  H = canvas.height = window.innerHeight * DPR;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  initMatrix();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', function(){ setTimeout(resize,200); });
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioCtx=null, analyser=null, fftData=null;
+let amp=0, freqBands=new Array(8).fill(0);
+let audioMode='none', flowState=0, demoT=0;
+let frame=0, rings=[], lastRing=0;
+let activeMode=0;
+
+function setupAnalyser(stream, sensitivity) {
+  if(audioCtx) audioCtx.close();
+  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.smoothingTimeConstant = sensitivity === 'tab' ? 0.55 : 0.70;
+  analyser.minDecibels = sensitivity === 'tab' ? -92 : -75;
+  analyser.maxDecibels = sensitivity === 'tab' ? -12 : -18;
+  fftData = new Uint8Array(analyser.frequencyBinCount);
+  const src = audioCtx.createMediaStreamSource(stream);
+  src.connect(analyser);
+}
+
+function readAudio(multiplier) {
+  if(!analyser) return;
+  analyser.getByteFrequencyData(fftData);
+  const sum = fftData.reduce(function(a,b){return a+b;},0);
+  const raw = Math.min(1,(sum/(fftData.length*255))*multiplier);
+  amp += (raw-amp)*0.12;
+  const bsz = Math.floor(fftData.length/8);
+  for(let i=0;i<8;i++){
+    let s=0; for(let j=0;j<bsz;j++) s+=fftData[i*bsz+j];
+    freqBands[i]+=(Math.min(1,(s/(bsz*255))*multiplier)-freqBands[i])*0.12;
+  }
+}
+
+function startDemo() {
+  if(audioCtx){audioCtx.close();audioCtx=null;analyser=null;}
+  audioMode='demo'; setStatus('SIMULATION ACTIVE','live'); setActiveBtn('btn-demo');
+}
+
+function startMic() {
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}})
+    .then(function(stream){
+      setupAnalyser(stream,'mic');
+      audioMode='mic'; setStatus('MIC CONNECTED','live'); setActiveBtn('btn-mic');
+    })
+    .catch(function(e){ setStatus('MIC ERROR: '+e.name,'error'); });
+}
+
+function startTabAudio() {
+  setStatus('SELECT TAB WITH AUDIO...','');
+  navigator.mediaDevices.getDisplayMedia({
+    video:{width:1,height:1},
+    audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+  }).then(function(stream){
+    const audioTracks = stream.getAudioTracks();
+    if(!audioTracks.length){
+      setStatus('NO AUDIO - CHECK SHARE AUDIO BOX','error');
+      stream.getTracks().forEach(function(t){t.stop();});
+      return;
+    }
+    stream.getVideoTracks().forEach(function(t){t.stop();});
+    setupAnalyser(stream,'tab');
+    audioMode='tab'; setStatus('TAB AUDIO LIVE','live'); setActiveBtn('btn-tab');
+    startCaptions();
+    audioTracks[0].onended=function(){
+      setStatus('SIGNAL LOST',''); audioMode='none'; flowState=0; stopCaptions();
+    };
+  }).catch(function(e){ setStatus('ERR: '+e.name,'error'); });
+}
+
+// ============================================================
+// CAPTIONS (Web Speech API)
+// ============================================================
+let recognition=null, captionsOn=false, captionTimer=null;
+const captionEl = document.getElementById('caption-text');
+
+function toggleCaptions() {
+  captionsOn=!captionsOn;
+  document.getElementById('btn-cap').textContent = captionsOn ? 'CC ON' : 'CC OFF';
+  if(captionsOn && audioMode==='tab') startCaptions();
+  else stopCaptions();
+}
+
+function startCaptions() {
+  if(!captionsOn) return;
+  if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  recognition.onresult = function(e) {
+    let transcript = '';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      transcript += e.results[i][0].transcript;
+    }
+    captionEl.textContent = transcript;
+    captionEl.classList.add('visible');
+    clearTimeout(captionTimer);
+    captionTimer = setTimeout(function(){ captionEl.classList.remove('visible'); }, 3000);
+  };
+  recognition.onerror = function(){};
+  recognition.onend = function(){ if(captionsOn && audioMode==='tab') recognition.start(); };
+  recognition.start();
+}
+
+function stopCaptions() {
+  if(recognition){ recognition.stop(); recognition=null; }
+  captionEl.classList.remove('visible');
+}
+
+// ============================================================
+// MATRIX RAIN DATA
+// ============================================================
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#@!$%∑∆π≡∞';
+const FS = 14;
+let columns=[];
+function initMatrix() {
+  const cols = Math.floor(W/(FS*DPR));
+  columns = Array.from({length:cols}, function(_,i){
+    return {
+      x:i*FS*DPR, y:Math.random()*H*-1,
+      speed:0.5+Math.random()*1.5,
+      chars:Array.from({length:20},function(){return CHARS[Math.floor(Math.random()*CHARS.length)];}),
+      charTimer:0, length:10+Math.floor(Math.random()*20)
+    };
+  });
+}
+
+// ============================================================
+// VISUALIZATION MODES
+// ============================================================
+
+// 1. BRAINWAVE
+let waveHistory=[];
+function drawBrainwave(fl) {
+  const cx=W/2, cy=H/2;
+  waveHistory.push(amp);
+  if(waveHistory.length>W) waveHistory.shift();
+
+  // Draw multiple frequency bands as waves
+  for(let band=0;band<6;band++){
+    const bandAmp = freqBands[band] || amp;
+    const yOffset = cy + (band-2.5)*60*DPR;
+    const hue = band*40;
+    ctx.beginPath();
+    ctx.strokeStyle = 'hsla('+hue+',100%,60%,'+(0.15+fl*0.5*(1-band*0.1))+')';
+    ctx.lineWidth = (2+band*0.5)*DPR;
+    for(let x=0;x<W;x++){
+      const t = x/W;
+      const freq = 2+band*1.5;
+      const phase = frame*0.03*(band%2?1:-1);
+      const waveAmp = 30*DPR*(0.3+bandAmp*2)*(1-band*0.1);
+      const y = yOffset + Math.sin(t*Math.PI*2*freq+phase)*waveAmp
+                        + Math.sin(t*Math.PI*4*(freq+1)+phase*1.3)*waveAmp*0.4;
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+
+  // Center pulse when loud
+  if(fl>0.4){
+    const r = Math.min(W,H)*0.15*fl;
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,'rgba(0,255,65,'+(0.3*fl)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+
+  // Rings on beats
+  rings.forEach(function(ring){
+    ring.r+=6*DPR; ring.alpha*=0.94;
+    ctx.beginPath(); ctx.arc(cx,cy,ring.r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,255,65,'+ring.alpha*fl+')';
+    ctx.lineWidth=1.5*DPR; ctx.stroke();
+  });
+  rings=rings.filter(function(r){return r.alpha>0.01;});
+}
+
+// 2. MATRIX RAIN
+function drawMatrixRain(fl) {
+  ctx.font=(FS*DPR)+"px 'Share Tech Mono',monospace";
+  columns.forEach(function(col){
+    col.charTimer++;
+    col.y+=col.speed*(0.3+fl*0.7)*DPR;
+    if(col.charTimer%Math.max(2,Math.floor(8-fl*6))===0)
+      col.chars[Math.floor(Math.random()*col.chars.length)]=CHARS[Math.floor(Math.random()*CHARS.length)];
+    if(col.y>H+col.length*FS*DPR){col.y=-col.length*FS*DPR;col.speed=0.5+Math.random()*1.5;}
+    for(let i=0;i<col.chars.length;i++){
+      const cy=col.y+i*FS*DPR;
+      if(cy<0||cy>H) continue;
+      const isHead=i===col.chars.length-1, fade=i/col.chars.length;
+      ctx.fillStyle=isHead?'rgba(200,255,200,0.95)':'rgba(0,'+(Math.floor(200*fade+fl*55*fade))+','+(Math.floor(fl*20*fade))+','+(fade*(0.5+fl*0.4))+')';
+      ctx.fillText(col.chars[i],col.x,cy);
+    }
+  });
+}
+
+// 3. NEBULA
+let nebulaParticles=[];
+function initNebula(){
+  nebulaParticles=Array.from({length:200},function(){
+    return {x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.5,vy:(Math.random()-0.5)*0.5,r:Math.random()*3*DPR,hue:Math.random()*60+260};
+  });
+}
+function drawNebula(fl) {
+  if(!nebulaParticles.length) initNebula();
+  nebulaParticles.forEach(function(p){
+    p.x+=p.vx*(1+fl*3); p.y+=p.vy*(1+fl*3);
+    if(p.x<0) p.x=W; if(p.x>W) p.x=0;
+    if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+    const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*(2+fl*4));
+    g.addColorStop(0,'hsla('+p.hue+',100%,70%,'+(0.3+fl*0.5)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(2+fl*4),0,Math.PI*2); ctx.fill();
+  });
+}
+
+// 4. BLACK HOLE
+function drawBlackHole(fl) {
+  const cx=W/2,cy=H/2;
+  for(let i=0;i<3;i++){
+    const r=Math.min(W,H)*(0.05+i*0.08+fl*0.05);
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,'rgba(0,0,0,1)');
+    g.addColorStop(0.7,'rgba(80,0,120,'+(0.3+fl*0.4)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+  const numArms=12;
+  for(let i=0;i<numArms;i++){
+    const angle=i/numArms*Math.PI*2+frame*0.01;
+    ctx.beginPath();
+    ctx.strokeStyle='rgba(120,0,255,'+(0.1+fl*0.4)+')';
+    ctx.lineWidth=DPR;
+    for(let r=20*DPR;r<Math.min(W,H)*0.4;r+=2){
+      const a=angle+r*0.008;
+      const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+      if(r===20*DPR) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+// 5. SOLAR STORM
+let solarArcs=[];
+function drawSolarStorm(fl) {
+  const cx=W/2,cy=H/2;
+  if(frame%20===0||fl>0.7) solarArcs.push({angle:Math.random()*Math.PI*2,len:0,speed:2+Math.random()*3,hue:20+Math.random()*40});
+  solarArcs=solarArcs.filter(function(a){return a.len<Math.min(W,H)*0.5;});
+  solarArcs.forEach(function(arc){
+    arc.len+=arc.speed*(1+fl*4)*DPR;
+    ctx.beginPath();
+    ctx.arc(cx,cy,arc.len,arc.angle,arc.angle+0.8);
+    ctx.strokeStyle='hsla('+arc.hue+',100%,60%,'+(0.4+fl*0.5)+')';
+    ctx.lineWidth=(2+fl*3)*DPR; ctx.stroke();
+  });
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.min(W,H)*0.15*(0.5+fl));
+  g.addColorStop(0,'rgba(255,200,50,'+(0.3+fl*0.4)+')');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,Math.min(W,H)*0.15*(0.5+fl),0,Math.PI*2); ctx.fill();
+}
+
+// 6. AURORA
+function drawAurora(fl) {
+  for(let band=0;band<5;band++){
+    const hue=100+band*30;
+    ctx.beginPath();
+    const yBase=H*0.3+band*H*0.08;
+    for(let x=0;x<=W;x+=4){
+      const t=x/W;
+      const y=yBase+Math.sin(t*Math.PI*3+frame*0.02+band)*80*DPR*(0.3+fl)+
+               Math.cos(t*Math.PI*5+frame*0.015)*40*DPR*fl;
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    const g=ctx.createLinearGradient(0,yBase-80*DPR,0,yBase+80*DPR);
+    g.addColorStop(0,'rgba(0,0,0,0)');
+    g.addColorStop(0.5,'hsla('+hue+',100%,60%,'+(0.05+fl*0.15)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.fill();
+  }
+}
+
+// 7. STAR FIELD
+let stars=[];
+function initStars(){
+  stars=Array.from({length:300},function(){
+    return {x:(Math.random()-0.5)*W,y:(Math.random()-0.5)*H,z:Math.random()*W};
+  });
+}
+function drawStarField(fl) {
+  if(!stars.length) initStars();
+  const cx=W/2,cy=H/2;
+  stars.forEach(function(star){
+    star.z-=(2+fl*8)*DPR;
+    if(star.z<=0) star.z=W;
+    const sx=cx+(star.x/star.z)*W;
+    const sy=cy+(star.y/star.z)*H;
+    const r=Math.max(0.5,(1-star.z/W)*3)*DPR;
+    const bright=1-star.z/W;
+    ctx.fillStyle='rgba(255,255,255,'+bright+')';
+    ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
+  });
+}
+
+// 8. OCEAN
+function drawOcean(fl) {
+  for(let layer=0;layer<4;layer++){
+    ctx.beginPath();
+    const yBase=H*(0.4+layer*0.12);
+    for(let x=0;x<=W;x+=3){
+      const t=x/W;
+      const y=yBase+Math.sin(t*Math.PI*4+frame*0.03+layer)*30*DPR*(0.5+fl)+
+               Math.cos(t*Math.PI*6+frame*0.02)*20*DPR*fl;
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fillStyle='rgba(0,'+(80+layer*20)+','+(150+layer*20)+','+(0.15+fl*0.2)+')';
+    ctx.fill();
+  }
+}
+
+// 9. VOLCANO
+let lavaParticles=[];
+function drawVolcano(fl) {
+  const cx=W/2,baseY=H;
+  // Draw volcano shape
+  ctx.beginPath();
+  ctx.moveTo(0,baseY); ctx.lineTo(cx-80*DPR,H*0.6); ctx.lineTo(cx,H*0.5); ctx.lineTo(cx+80*DPR,H*0.6); ctx.lineTo(W,baseY);
+  ctx.fillStyle='rgba(40,20,10,0.5)'; ctx.fill();
+  // Lava particles
+  if(fl>0.1||(frame%10===0)){
+    for(let i=0;i<Math.floor(fl*5+1);i++){
+      lavaParticles.push({x:cx+(Math.random()-0.5)*20*DPR,y:H*0.5,vx:(Math.random()-0.5)*4*DPR,vy:-(2+Math.random()*4+fl*6)*DPR,life:1,hue:Math.random()*30});
+    }
+  }
+  lavaParticles=lavaParticles.filter(function(p){return p.life>0;});
+  lavaParticles.forEach(function(p){
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.1*DPR; p.life-=0.02;
+    ctx.fillStyle='hsla('+p.hue+',100%,60%,'+p.life+')';
+    ctx.beginPath(); ctx.arc(p.x,p.y,3*DPR*p.life,0,Math.PI*2); ctx.fill();
+  });
+}
+
+// 10. MANDELBROT (animated)
+function drawMandelbrot(fl) {
+  const cx=W/2,cy=H/2;
+  const zoom=1.5+fl*0.5+Math.sin(frame*0.005)*0.3;
+  const iw=Math.floor(W/4), ih=Math.floor(H/4);
+  const id=ctx.createImageData(iw,ih);
+  for(let px=0;px<iw;px++){
+    for(let py=0;py<ih;py++){
+      let x0=(px-iw/2)/(iw*0.25*zoom), y0=(py-ih/2)/(ih*0.25*zoom);
+      let x=0,y=0,iter=0,maxIter=40;
+      while(x*x+y*y<4&&iter<maxIter){const xt=x*x-y*y+x0;y=2*x*y+y0;x=xt;iter++;}
+      const idx=(py*iw+px)*4;
+      if(iter===maxIter){id.data[idx]=0;id.data[idx+1]=0;id.data[idx+2]=0;}
+      else{const t=iter/maxIter;id.data[idx]=Math.floor(t*100*fl);id.data[idx+1]=Math.floor(t*255);id.data[idx+2]=Math.floor((1-t)*200);}
+      id.data[idx+3]=200;
+    }
+  }
+  const tmp=document.createElement('canvas');tmp.width=iw;tmp.height=ih;
+  tmp.getContext('2d').putImageData(id,0,0);
+  ctx.drawImage(tmp,0,0,W,H);
+}
+
+// ============================================================
+// CAROUSEL BUILD
+// ============================================================
+const carousel=document.getElementById('carousel');
+const dotsEl=document.getElementById('dots');
+let currentMode=0;
+
+MODES.forEach(function(mode,i){
+  const card=document.createElement('div');
+  card.className='mode-card'+(i===0?' active':'');
+  card.innerHTML='<span class="card-icon">'+mode.icon+'</span><span class="card-label">'+mode.name+'</span>';
+  card.addEventListener('click',function(){selectMode(i);});
+  carousel.appendChild(card);
+  const dot=document.createElement('div');
+  dot.className='dot'+(i===0?' active':'');
+  dotsEl.appendChild(dot);
+});
+
+function selectMode(idx){
+  currentMode=idx;
+  document.querySelectorAll('.mode-card').forEach(function(c,i){c.classList.toggle('active',i===idx);});
+  document.querySelectorAll('.dot').forEach(function(d,i){d.classList.toggle('active',i===idx);});
+  document.getElementById('mode-name').textContent=MODES[idx].name.toUpperCase();
+  const cards=carousel.querySelectorAll('.mode-card');
+  cards[idx].scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+  // Reset particles for modes that need it
+  nebulaParticles=[]; lavaParticles=[]; solarArcs=[]; stars=[];
+}
+
+// Drag scroll
+let isDown=false,startX,scrollLeft;
+carousel.addEventListener('mousedown',function(e){isDown=true;carousel.classList.add('grabbing');startX=e.pageX-carousel.offsetLeft;scrollLeft=carousel.scrollLeft;});
+carousel.addEventListener('mouseleave',function(){isDown=false;carousel.classList.remove('grabbing');});
+carousel.addEventListener('mouseup',function(){isDown=false;carousel.classList.remove('grabbing');});
+carousel.addEventListener('mousemove',function(e){if(!isDown)return;e.preventDefault();carousel.scrollLeft=scrollLeft-(e.pageX-carousel.offsetLeft-startX)*1.5;});
+carousel.addEventListener('scroll',function(){
+  const center=carousel.scrollLeft+carousel.clientWidth/2;
+  const cards=[...carousel.querySelectorAll('.mode-card')];
+  let closest=0,minDist=Infinity;
+  cards.forEach(function(card,i){const d=Math.abs(card.offsetLeft+card.offsetWidth/2-center);if(d<minDist){minDist=d;closest=i;}});
+  if(closest!==currentMode) selectMode(closest);
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight') selectMode(Math.min(currentMode+1,MODES.length-1));
+  if(e.key==='ArrowLeft') selectMode(Math.max(currentMode-1,0));
+});
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function setStatus(msg,cls){const el=document.getElementById('status');el.textContent='_ '+msg+' _';el.className=cls||'';}
+function setActiveBtn(id){['btn-demo','btn-mic','btn-tab'].forEach(function(b){document.getElementById(b).classList.remove('active');});document.getElementById(id).classList.add('active');}
+
+let uiVisible=true;
+document.getElementById('toggle-ui').onclick=function(){
+  uiVisible=!uiVisible;
+  document.getElementById('ui').classList.toggle('hidden',!uiVisible);
+  document.getElementById('toggle-ui').textContent=uiVisible?'x':'=';
+};
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function loop(){
+  requestAnimationFrame(loop); frame++;
+  // Audio
+  if(audioMode==='demo'){
+    demoT+=0.04;
+    const d=Math.min(1,0.2+0.6*Math.abs(Math.sin(demoT*0.6))+0.2*Math.random());
+    amp+=(d-amp)*0.08;
+    for(let i=0;i<8;i++) freqBands[i]+=(Math.random()*d-freqBands[i])*0.12;
+  } else if(audioMode!=='none'){
+    readAudio(audioMode==='tab'?14:10);
+  } else { amp+=(0-amp)*0.05; }
+
+  const targetFlow=audioMode!=='none'?amp:0;
+  flowState+=(targetFlow-flowState)*0.04;
+  if(amp>0.65&&frame-lastRing>35){rings.push({r:0,alpha:1});lastRing=frame;}
+  document.getElementById('flow-fill').style.height=(flowState*100)+'%';
+
+  // Mode name glow
+  const mn=document.getElementById('mode-name');
+  mn.classList.toggle('active',flowState>0.2);
+
+  // Status flow state
+  if(audioMode!=='none'&&flowState>0.8){
+    setStatus('FLOW STATE : ONE','flow');
+  }
+
+  // Clear
+  ctx.fillStyle='rgba(0,0,0,'+(0.1+(1-flowState)*0.08)+')';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw current mode
+  MODES[currentMode].draw(flowState);
+}
+
+// Init
+resize();
+loop();
+
+if('wakeLock' in navigator){
+  navigator.wakeLock.request('screen').catch(function(){});
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible') navigator.wakeLock.request('screen').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
