@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>VIVID ONE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+:root {
+  --green: #00ff41;
+  --human: #ff8c42;
+  --ai: #00ff41;
+  --safe-bottom: env(safe-area-inset-bottom,0px);
+  --safe-top: env(safe-area-inset-top,0px);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { width:100%; height:100%; overflow:hidden; background:#000; }
+canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
+
+/* TOP BAR */
+#topbar {
+  position:fixed; top:calc(12px + var(--safe-top)); left:0; right:0;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0 16px; z-index:20; pointer-events:none;
+}
+#logo {
+  font-family:'Orbitron',monospace; font-size:13px;
+  color:var(--green); letter-spacing:0.4em;
+  text-shadow:0 0 10px var(--green);
+}
+#tagline {
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:rgba(0,255,65,0.4); letter-spacing:0.15em;
+  text-transform:uppercase;
+}
+#toggle-ui {
+  width:36px; height:36px; background:rgba(0,255,65,0.08);
+  border:1px solid rgba(0,255,65,0.3); border-radius:3px; color:var(--green);
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; z-index:20; pointer-events:all;
+}
+
+/* SPEAKER INDICATOR */
+#speaker-indicator {
+  position:fixed; top:50%; left:20px; transform:translateY(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  z-index:15; pointer-events:none;
+}
+.speaker-dot {
+  width:8px; height:8px; border-radius:50%;
+  transition:all 0.3s; opacity:0.2;
+}
+#dot-human { background:var(--human); }
+#dot-ai { background:var(--ai); }
+#speaker-label {
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:rgba(255,255,255,0.3); writing-mode:vertical-rl;
+  text-orientation:mixed; transform:rotate(180deg);
+  transition:color 0.3s;
+}
+
+/* FLOW METER */
+#flow-meter {
+  position:fixed; right:14px; top:50%; transform:translateY(-50%);
+  width:3px; height:120px; background:rgba(0,255,65,0.1);
+  border:1px solid rgba(0,255,65,0.2); z-index:15; border-radius:2px; overflow:hidden;
+}
+#flow-fill {
+  position:absolute; bottom:0; left:0; right:0;
+  background:linear-gradient(to top,#00ff41,#fff);
+  transition:height 0.1s; box-shadow:0 0 8px #00ff41;
+}
+
+/* MODE NAME */
+#mode-display {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-60%);
+  text-align:center; z-index:10; pointer-events:none;
+}
+#mode-name {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(18px,4vw,42px); font-weight:700;
+  color:rgba(255,255,255,0.06); letter-spacing:0.15em;
+  transition:all 0.5s;
+}
+#mode-name.active { color:#fff; text-shadow:0 0 20px var(--green), 0 0 60px rgba(0,255,65,0.3); }
+
+/* CAPTIONS */
+#captions {
+  position:fixed; bottom:185px; left:50%; transform:translateX(-50%);
+  width:80%; max-width:700px; text-align:center; z-index:15; pointer-events:none;
+}
+#caption-text {
+  font-family:'Share Tech Mono',monospace; font-size:15px;
+  color:rgba(255,255,255,0.9); letter-spacing:0.05em; line-height:1.6;
+  text-shadow:0 0 10px rgba(0,255,65,0.5);
+  background:rgba(0,0,0,0.5); padding:8px 16px; border-radius:4px;
+  border-left:2px solid var(--green); opacity:0; transition:opacity 0.3s;
+}
+#caption-text.visible { opacity:1; }
+#caption-text.human-voice { border-left-color:var(--human); text-shadow:0 0 10px rgba(255,140,66,0.4); }
+
+/* BOTTOM UI */
+#ui {
+  position:fixed; bottom:0; left:0; right:0;
+  padding:10px 12px calc(10px + var(--safe-bottom));
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  background:linear-gradient(transparent, rgba(0,8,0,0.95));
+  z-index:10; transition:opacity 0.5s;
+}
+#ui.hidden { opacity:0; pointer-events:none; }
+
+/* CAROUSEL */
+#carousel {
+  display:flex; gap:10px;
+  padding:0 calc(50% - 55px);
+  overflow-x:scroll; scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  cursor:grab; width:100%;
+}
+#carousel::-webkit-scrollbar { display:none; }
+.mode-card {
+  flex:0 0 110px; height:75px; border-radius:5px;
+  border:1px solid rgba(0,255,65,0.2); background:rgba(0,255,65,0.04);
+  scroll-snap-align:center; cursor:pointer; transition:all 0.3s ease;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+}
+.mode-card.active {
+  border-color:var(--green); background:rgba(0,255,65,0.12);
+  box-shadow:0 0 16px rgba(0,255,65,0.3); transform:translateY(-6px) scale(1.06);
+}
+.card-icon { font-size:20px; }
+.card-label {
+  font-size:8px; color:rgba(0,255,65,0.7); letter-spacing:0.08em;
+  text-transform:uppercase; font-family:'Share Tech Mono',monospace;
+  text-align:center; padding:0 4px;
+}
+.mode-card.active .card-label { color:#fff; }
+
+#dots { display:flex; justify-content:center; gap:5px; margin-top:6px; }
+.dot { width:4px; height:4px; border-radius:50%; background:rgba(0,255,65,0.2); transition:all 0.3s; }
+.dot.active { background:var(--green); box-shadow:0 0 6px var(--green); width:14px; border-radius:2px; }
+
+.btn-row { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+button {
+  background:rgba(0,255,65,0.07); border:1px solid rgba(0,255,65,0.3);
+  color:var(--green); padding:8px 16px; border-radius:3px; cursor:pointer;
+  font-size:11px; font-family:'Share Tech Mono',monospace;
+  min-height:34px; letter-spacing:0.05em; text-transform:uppercase;
+  transition:all 0.15s; -webkit-appearance:none;
+}
+button:hover { background:rgba(0,255,65,0.18); border-color:var(--green); }
+button.active { background:rgba(0,255,65,0.22); border-color:var(--green); color:#fff; box-shadow:0 0 10px rgba(0,255,65,0.35); }
+button.human-active { background:rgba(255,140,66,0.15); border-color:var(--human); color:var(--human); box-shadow:0 0 10px rgba(255,140,66,0.3); }
+
+#status {
+  color:rgba(0,255,65,0.5); font-size:10px;
+  font-family:'Share Tech Mono',monospace; letter-spacing:0.1em; text-transform:uppercase;
+}
+#status.live { color:var(--green); text-shadow:0 0 8px var(--green); }
+#status.error { color:#ff4141; }
+#status.flow { color:#fff; text-shadow:0 0 20px #fff, 0 0 40px rgba(0,255,65,0.8); }
+#status.human { color:var(--human); text-shadow:0 0 8px var(--human); }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+
+<div id="topbar">
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <div id="logo">VIVID ONE</div>
+    <div id="tagline">The voice, made visible.</div>
+  </div>
+  <div id="toggle-ui">x</div>
+</div>
+
+<div id="speaker-indicator">
+  <div class="speaker-dot" id="dot-human"></div>
+  <div id="speaker-label">—</div>
+  <div class="speaker-dot" id="dot-ai"></div>
+</div>
+
+<div id="flow-meter"><div id="flow-fill" style="height:0%"></div></div>
+
+<div id="mode-display">
+  <div id="mode-name">BRAINWAVE</div>
+</div>
+
+<div id="captions">
+  <div id="caption-text"></div>
+</div>
+
+<div id="ui">
+  <div style="width:100%">
+    <div id="carousel"></div>
+    <div id="dots"></div>
+  </div>
+  <div class="btn-row">
+    <button onclick="startDemo()" id="btn-demo">DEMO</button>
+    <button onclick="startMic()" id="btn-mic">🎤 MY VOICE</button>
+    <button onclick="startTabAudio()" id="btn-tab">TAB AUDIO</button>
+    <button onclick="toggleCaptions()" id="btn-cap">CC OFF</button>
+  </div>
+  <div id="status">_ the voice, made visible _</div>
+</div>
+
+<script>
+// ============================================================
+// SPEAKER STATE
+// 'none' | 'human' | 'ai' | 'silence'
+// ============================================================
+let speakerState = 'none';
+let speakerTimer = null;
+let humanAmp = 0, aiAmp = 0;
+let micAnalyser = null, micFftData = null;
+let tabAnalyser = null, tabFftData = null;
+
+// Palette per speaker
+const PALETTE = {
+  human: { primary:'#ff8c42', secondary:'#ffcc66', glow:'rgba(255,140,66,', waveStyle:'organic' },
+  ai:    { primary:'#00ff41', secondary:'#00ccff', glow:'rgba(0,255,65,',   waveStyle:'geometric' },
+  none:  { primary:'#00ff41', secondary:'#00ff41', glow:'rgba(0,255,65,',   waveStyle:'geometric' }
+};
+
+function getSpeaker() { return speakerState === 'none' ? 'ai' : speakerState; }
+function getPalette() { return PALETTE[getSpeaker()] || PALETTE.ai; }
+
+function setSpeaker(s) {
+  if(speakerState === s) return;
+  speakerState = s;
+  const pal = getPalette();
+  // Update speaker indicator
+  const dh = document.getElementById('dot-human');
+  const da = document.getElementById('dot-ai');
+  const sl = document.getElementById('speaker-label');
+  dh.style.opacity = s==='human' ? '1' : '0.15';
+  dh.style.boxShadow = s==='human' ? '0 0 10px #ff8c42' : 'none';
+  da.style.opacity = s==='ai' ? '1' : '0.15';
+  da.style.boxShadow = s==='ai' ? '0 0 8px #00ff41' : 'none';
+  sl.textContent = s==='human' ? 'YOU' : s==='ai' ? 'AI' : '—';
+  sl.style.color = s==='human' ? '#ff8c42' : s==='ai' ? '#00ff41' : 'rgba(255,255,255,0.3)';
+
+  // Update flow meter color
+  document.getElementById('flow-fill').style.background =
+    s==='human' ? 'linear-gradient(to top,#ff8c42,#ffcc66)'
+                : 'linear-gradient(to top,#00ff41,#fff)';
+}
+
+// ============================================================
+// MODES
+// ============================================================
+const MODES = [
+  { name:'Brainwave',   icon:'∿', draw:drawBrainwave },
+  { name:'Matrix Rain', icon:'⬡', draw:drawMatrixRain },
+  { name:'Nebula',      icon:'✦', draw:drawNebula },
+  { name:'Black Hole',  icon:'◉', draw:drawBlackHole },
+  { name:'Solar Storm', icon:'☀', draw:drawSolarStorm },
+  { name:'Aurora',      icon:'❋', draw:drawAurora },
+  { name:'Star Field',  icon:'★', draw:drawStarField },
+  { name:'Ocean Waves', icon:'〰', draw:drawOcean },
+  { name:'Volcano',     icon:'▲', draw:drawVolcano },
+  { name:'Mandelbrot',  icon:'◈', draw:drawMandelbrot },
+];
+
+// ============================================================
+// CANVAS
+// ============================================================
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let W, H, DPR;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = canvas.width = window.innerWidth * DPR;
+  H = canvas.height = window.innerHeight * DPR;
+  canvas.style.width = window.innerWidth+'px';
+  canvas.style.height = window.innerHeight+'px';
+  initMatrix();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', function(){ setTimeout(resize,200); });
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioCtx = null;
+let amp = 0, freqBands = new Array(8).fill(0);
+let audioMode = 'none', flowState = 0, demoT = 0;
+let frame = 0, rings = [], lastRing = 0;
+let currentMode = 0;
+let micStream = null, tabStream = null;
+
+function makeAnalyser(stream, sensitivity) {
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const an = audioCtx.createAnalyser();
+  an.fftSize = 1024;
+  an.smoothingTimeConstant = sensitivity==='tab' ? 0.55 : 0.65;
+  an.minDecibels = sensitivity==='tab' ? -92 : -78;
+  an.maxDecibels = sensitivity==='tab' ? -12 : -20;
+  const src = audioCtx.createMediaStreamSource(stream);
+  src.connect(an);
+  const fft = new Uint8Array(an.frequencyBinCount);
+  return { an, fft };
+}
+
+function readAnalyser(an, fft, multiplier) {
+  an.getByteFrequencyData(fft);
+  const sum = fft.reduce(function(a,b){return a+b;},0);
+  return Math.min(1,(sum/(fft.length*255))*multiplier);
+}
+
+function startDemo() {
+  audioMode='demo'; setStatus('SIMULATION ACTIVE','live'); setActiveBtn('btn-demo');
+  setSpeaker('ai');
+}
+
+function startMic() {
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})
+    .then(function(stream){
+      micStream = stream;
+      const result = makeAnalyser(stream,'mic');
+      micAnalyser = result.an; micFftData = result.fft;
+      if(audioMode !== 'both') audioMode = 'mic';
+      setStatus('YOUR VOICE CONNECTED','human'); setActiveBtn('btn-mic');
+      document.getElementById('btn-mic').classList.add('human-active');
+    })
+    .catch(function(e){ setStatus('MIC ERROR: '+e.name,'error'); });
+}
+
+function startTabAudio() {
+  setStatus('SELECT CLAUDE TAB...','');
+  navigator.mediaDevices.getDisplayMedia({
+    video:{width:1,height:1},
+    audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+  }).then(function(stream){
+    const audioTracks = stream.getAudioTracks();
+    if(!audioTracks.length){
+      setStatus('NO AUDIO — CHECK SHARE AUDIO BOX','error');
+      stream.getTracks().forEach(function(t){t.stop();}); return;
+    }
+    stream.getVideoTracks().forEach(function(t){t.stop();});
+    tabStream = stream;
+    const result = makeAnalyser(stream,'tab');
+    tabAnalyser = result.an; tabFftData = result.fft;
+    // If mic already active, go dual mode
+    audioMode = micAnalyser ? 'both' : 'tab';
+    setStatus('CLAUDE VOICE CONNECTED','live'); setActiveBtn('btn-tab');
+    startCaptions();
+    audioTracks[0].onended=function(){
+      tabAnalyser=null; tabFftData=null;
+      audioMode = micAnalyser ? 'mic' : 'none';
+      setStatus('SIGNAL LOST',''); flowState=0; stopCaptions();
+    };
+  }).catch(function(e){ setStatus('ERR: '+e.name,'error'); });
+}
+
+// ============================================================
+// DUAL VOICE DETECTION
+// ============================================================
+let silenceFrames = 0;
+const SILENCE_THRESHOLD = 0.04;
+const SILENCE_FRAMES = 18; // ~0.3s of silence before "breathing"
+
+function updateDualAudio() {
+  let rawHuman = 0, rawAI = 0;
+
+  if(micAnalyser && micFftData) rawHuman = readAnalyser(micAnalyser, micFftData, 10);
+  if(tabAnalyser && tabFftData) rawAI = readAnalyser(tabAnalyser, tabFftData, 14);
+
+  humanAmp += (rawHuman - humanAmp) * 0.12;
+  aiAmp    += (rawAI    - aiAmp)    * 0.12;
+
+  // Determine who is speaking
+  const hSpeaking = humanAmp > SILENCE_THRESHOLD;
+  const aSpeaking = aiAmp    > SILENCE_THRESHOLD;
+
+  if(hSpeaking && humanAmp > aiAmp) {
+    setSpeaker('human'); silenceFrames = 0;
+    amp = humanAmp;
+  } else if(aSpeaking) {
+    setSpeaker('ai'); silenceFrames = 0;
+    amp = aiAmp;
+  } else {
+    silenceFrames++;
+    if(silenceFrames > SILENCE_FRAMES) {
+      // Breathing idle — keep last speaker but reduce amp
+      amp += (0.015 - amp) * 0.06; // gentle pulse, not zero
+    }
+  }
+
+  // Freq bands from dominant source
+  const an = (speakerState==='human' && micAnalyser) ? micAnalyser :
+             (tabAnalyser || micAnalyser);
+  const fft = (speakerState==='human' && micFftData) ? micFftData :
+              (tabFftData || micFftData);
+  if(an && fft) {
+    an.getByteFrequencyData(fft);
+    const mult = speakerState==='human' ? 10 : 14;
+    const bsz = Math.floor(fft.length/8);
+    for(let i=0;i<8;i++){
+      let s=0; for(let j=0;j<bsz;j++) s+=fft[i*bsz+j];
+      freqBands[i]+=(Math.min(1,(s/(bsz*255))*mult)-freqBands[i])*0.12;
+    }
+  }
+}
+
+// ============================================================
+// CAPTIONS
+// ============================================================
+let recognition=null, captionsOn=false, captionTimer=null;
+const captionEl = document.getElementById('caption-text');
+
+function toggleCaptions() {
+  captionsOn=!captionsOn;
+  document.getElementById('btn-cap').textContent = captionsOn ? 'CC ON' : 'CC OFF';
+  if(captionsOn) startCaptions(); else stopCaptions();
+}
+
+function startCaptions() {
+  if(!captionsOn) return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)) return;
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous=true; recognition.interimResults=true; recognition.lang='en-US';
+  recognition.onresult=function(e){
+    let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+    captionEl.textContent=t;
+    captionEl.classList.add('visible');
+    captionEl.classList.toggle('human-voice', speakerState==='human');
+    clearTimeout(captionTimer);
+    captionTimer=setTimeout(function(){ captionEl.classList.remove('visible'); },3000);
+  };
+  recognition.onerror=function(){};
+  recognition.onend=function(){ if(captionsOn) recognition.start(); };
+  recognition.start();
+}
+
+function stopCaptions() {
+  if(recognition){recognition.stop();recognition=null;}
+  captionEl.classList.remove('visible');
+}
+
+// ============================================================
+// MATRIX RAIN
+// ============================================================
+const CHARS='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#@!$%∑∆π≡∞';
+const FS=14; let columns=[];
+function initMatrix(){
+  const cols=Math.floor(W/(FS*DPR));
+  columns=Array.from({length:cols},function(_,i){
+    return {x:i*FS*DPR,y:Math.random()*H*-1,speed:0.5+Math.random()*1.5,
+      chars:Array.from({length:20},function(){return CHARS[Math.floor(Math.random()*CHARS.length)];}),
+      charTimer:0,length:10+Math.floor(Math.random()*20)};
+  });
+}
+
+// ============================================================
+// VISUALIZATION MODES
+// ============================================================
+
+// 1. BRAINWAVE — dual voice signatures
+let wavePhase = 0;
+function drawBrainwave(fl) {
+  const cx=W/2, cy=H/2;
+  const pal = getPalette();
+  const spk = getSpeaker();
+  wavePhase += spk==='human' ? 0.025 : 0.018;
+
+  if(spk==='human') {
+    // HUMAN: warm, organic, irregular sine waves — flowing and natural
+    for(let band=0;band<6;band++){
+      const bandAmp = freqBands[band]||amp;
+      const yOffset = cy+(band-2.5)*55*DPR;
+      const hue = 20+band*12; // orange to yellow
+      ctx.beginPath();
+      ctx.strokeStyle='hsla('+hue+',100%,65%,'+(0.12+fl*0.55*(1-band*0.08))+')';
+      ctx.lineWidth=(1.5+band*0.4)*DPR;
+      for(let x=0;x<W;x++){
+        const t=x/W;
+        // Organic: multiple overlapping irregular frequencies
+        const wAmp=35*DPR*(0.3+bandAmp*2)*(1-band*0.12);
+        const y=yOffset
+          +Math.sin(t*Math.PI*2*(2+band)+wavePhase*(1+band*0.3))*wAmp
+          +Math.sin(t*Math.PI*(3.7+band*0.8)+wavePhase*1.6)*wAmp*0.5
+          +Math.sin(t*Math.PI*(1.2+band*0.3)+wavePhase*0.7)*wAmp*0.25;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+  } else {
+    // AI: cool green/cyan, precise geometric waves — clean and mathematical
+    for(let band=0;band<6;band++){
+      const bandAmp=freqBands[band]||amp;
+      const yOffset=cy+(band-2.5)*55*DPR;
+      const hue=band%2===0?140:190; // green / cyan alternating
+      ctx.beginPath();
+      ctx.strokeStyle='hsla('+hue+',100%,55%,'+(0.13+fl*0.5*(1-band*0.08))+')';
+      ctx.lineWidth=(1.5+band*0.3)*DPR;
+      for(let x=0;x<W;x++){
+        const t=x/W;
+        // Geometric: precise harmonics, clean sine
+        const wAmp=30*DPR*(0.3+bandAmp*2)*(1-band*0.1);
+        const freq=2+band*1.5;
+        const y=yOffset
+          +Math.sin(t*Math.PI*2*freq+wavePhase)*wAmp
+          +Math.sin(t*Math.PI*4*(freq+1)+wavePhase*1.3)*wAmp*0.3;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Center glow — color matches speaker
+  if(fl>0.3){
+    const r=Math.min(W,H)*0.14*fl;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,pal.glow+(0.25*fl)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+
+  // Rings on beats
+  rings.forEach(function(ring){
+    ring.r+=5*DPR; ring.alpha*=0.93;
+    ctx.beginPath(); ctx.arc(cx,cy,ring.r,0,Math.PI*2);
+    ctx.strokeStyle=pal.glow+ring.alpha*fl+')';
+    ctx.lineWidth=1.5*DPR; ctx.stroke();
+  });
+  rings=rings.filter(function(r){return r.alpha>0.01;});
+}
+
+// 2. MATRIX RAIN
+function drawMatrixRain(fl) {
+  const pal=getPalette(); const spk=getSpeaker();
+  ctx.font=(FS*DPR)+"px 'Share Tech Mono',monospace";
+  columns.forEach(function(col){
+    col.charTimer++;
+    col.y+=col.speed*(0.3+fl*0.7)*DPR;
+    if(col.charTimer%Math.max(2,Math.floor(8-fl*6))===0)
+      col.chars[Math.floor(Math.random()*col.chars.length)]=CHARS[Math.floor(Math.random()*CHARS.length)];
+    if(col.y>H+col.length*FS*DPR){col.y=-col.length*FS*DPR;col.speed=0.5+Math.random()*1.5;}
+    for(let i=0;i<col.chars.length;i++){
+      const cy2=col.y+i*FS*DPR;
+      if(cy2<0||cy2>H) continue;
+      const isHead=i===col.chars.length-1, fade=i/col.chars.length;
+      if(spk==='human') {
+        ctx.fillStyle=isHead?'rgba(255,220,180,0.95)':'rgba('+(Math.floor(200*fade))+','+(Math.floor(80*fade))+',0,'+(fade*(0.5+fl*0.4))+')';
+      } else {
+        ctx.fillStyle=isHead?'rgba(200,255,200,0.95)':'rgba(0,'+(Math.floor(200*fade+fl*55*fade))+','+(Math.floor(fl*20*fade))+','+(fade*(0.5+fl*0.4))+')';
+      }
+      ctx.fillText(col.chars[i],col.x,cy2);
+    }
+  });
+}
+
+// 3. NEBULA
+let nebulaParticles=[];
+function initNebula(){ nebulaParticles=Array.from({length:200},function(){ return {x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.5,vy:(Math.random()-0.5)*0.5,r:Math.random()*3*DPR,hue:Math.random()*60+260}; }); }
+function drawNebula(fl){
+  if(!nebulaParticles.length) initNebula();
+  const spk=getSpeaker();
+  nebulaParticles.forEach(function(p){
+    p.x+=p.vx*(1+fl*3);p.y+=p.vy*(1+fl*3);
+    if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    const hue=spk==='human'?p.hue*0.3+20:p.hue; // warm for human
+    const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*(2+fl*4));
+    g.addColorStop(0,'hsla('+hue+',100%,70%,'+(0.3+fl*0.5)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*(2+fl*4),0,Math.PI*2);ctx.fill();
+  });
+}
+
+// 4. BLACK HOLE
+function drawBlackHole(fl){
+  const cx=W/2,cy=H/2;
+  for(let i=0;i<3;i++){
+    const r=Math.min(W,H)*(0.05+i*0.08+fl*0.05);
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(0.7,'rgba(80,0,120,'+(0.3+fl*0.4)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+  }
+  for(let i=0;i<12;i++){
+    const angle=i/12*Math.PI*2+frame*0.01;
+    ctx.beginPath();ctx.strokeStyle='rgba(120,0,255,'+(0.1+fl*0.4)+')';ctx.lineWidth=DPR;
+    for(let r=20*DPR;r<Math.min(W,H)*0.4;r+=2){
+      const a=angle+r*0.008;const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
+      if(r===20*DPR)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+// 5. SOLAR STORM
+let solarArcs=[];
+function drawSolarStorm(fl){
+  const cx=W/2,cy=H/2;
+  const spk=getSpeaker();
+  if(frame%20===0||fl>0.7) solarArcs.push({angle:Math.random()*Math.PI*2,len:0,speed:2+Math.random()*3,hue:spk==='human'?20+Math.random()*30:20+Math.random()*40});
+  solarArcs=solarArcs.filter(function(a){return a.len<Math.min(W,H)*0.5;});
+  solarArcs.forEach(function(arc){
+    arc.len+=arc.speed*(1+fl*4)*DPR;
+    ctx.beginPath();ctx.arc(cx,cy,arc.len,arc.angle,arc.angle+0.8);
+    ctx.strokeStyle='hsla('+arc.hue+',100%,60%,'+(0.4+fl*0.5)+')';ctx.lineWidth=(2+fl*3)*DPR;ctx.stroke();
+  });
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.min(W,H)*0.15*(0.5+fl));
+  g.addColorStop(0,'rgba(255,200,50,'+(0.3+fl*0.4)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*0.15*(0.5+fl),0,Math.PI*2);ctx.fill();
+}
+
+// 6. AURORA
+function drawAurora(fl){
+  const spk=getSpeaker();
+  for(let band=0;band<5;band++){
+    const hue=spk==='human'?30+band*15:100+band*30;
+    ctx.beginPath();
+    const yBase=H*0.3+band*H*0.08;
+    for(let x=0;x<=W;x+=4){
+      const t=x/W;
+      const y=yBase+Math.sin(t*Math.PI*3+frame*0.02+band)*80*DPR*(0.3+fl)+Math.cos(t*Math.PI*5+frame*0.015)*40*DPR*fl;
+      if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+    const g=ctx.createLinearGradient(0,yBase-80*DPR,0,yBase+80*DPR);
+    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'hsla('+hue+',100%,60%,'+(0.05+fl*0.15)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.fill();
+  }
+}
+
+// 7. STAR FIELD
+let stars=[];
+function initStars(){ stars=Array.from({length:300},function(){return {x:(Math.random()-0.5)*W,y:(Math.random()-0.5)*H,z:Math.random()*W};}); }
+function drawStarField(fl){
+  if(!stars.length)initStars();
+  const cx=W/2,cy=H/2;
+  const spk=getSpeaker();
+  stars.forEach(function(star){
+    star.z-=(2+fl*8)*DPR;if(star.z<=0)star.z=W;
+    const sx=cx+(star.x/star.z)*W,sy=cy+(star.y/star.z)*H;
+    const r=Math.max(0.5,(1-star.z/W)*3)*DPR,bright=1-star.z/W;
+    ctx.fillStyle=spk==='human'?'rgba(255,'+(Math.floor(180+bright*75))+','+(Math.floor(bright*100))+','+bright+')'
+                               :'rgba(255,255,255,'+bright+')';
+    ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.fill();
+  });
+}
+
+// 8. OCEAN
+function drawOcean(fl){
+  const spk=getSpeaker();
+  for(let layer=0;layer<4;layer++){
+    ctx.beginPath();
+    const yBase=H*(0.4+layer*0.12);
+    for(let x=0;x<=W;x+=3){
+      const t=x/W;
+      const y=yBase+Math.sin(t*Math.PI*4+frame*0.03+layer)*30*DPR*(0.5+fl)+Math.cos(t*Math.PI*6+frame*0.02)*20*DPR*fl;
+      if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+    const r=spk==='human'?Math.floor(100+layer*20):0;
+    const g=spk==='human'?Math.floor(60+layer*10):Math.floor(80+layer*20);
+    const b=spk==='human'?Math.floor(40+layer*10):Math.floor(150+layer*20);
+    ctx.fillStyle='rgba('+r+','+g+','+b+','+(0.15+fl*0.2)+')';
+    ctx.fill();
+  }
+}
+
+// 9. VOLCANO
+let lavaParticles=[];
+function drawVolcano(fl){
+  const cx=W/2;
+  ctx.beginPath();ctx.moveTo(0,H);ctx.lineTo(cx-80*DPR,H*0.6);ctx.lineTo(cx,H*0.5);ctx.lineTo(cx+80*DPR,H*0.6);ctx.lineTo(W,H);
+  ctx.fillStyle='rgba(40,20,10,0.5)';ctx.fill();
+  if(fl>0.1||(frame%10===0)){
+    for(let i=0;i<Math.floor(fl*5+1);i++){
+      lavaParticles.push({x:cx+(Math.random()-0.5)*20*DPR,y:H*0.5,vx:(Math.random()-0.5)*4*DPR,vy:-(2+Math.random()*4+fl*6)*DPR,life:1,hue:Math.random()*30});
+    }
+  }
+  lavaParticles=lavaParticles.filter(function(p){return p.life>0;});
+  lavaParticles.forEach(function(p){
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.1*DPR;p.life-=0.02;
+    ctx.fillStyle='hsla('+p.hue+',100%,60%,'+p.life+')';
+    ctx.beginPath();ctx.arc(p.x,p.y,3*DPR*p.life,0,Math.PI*2);ctx.fill();
+  });
+}
+
+// 10. MANDELBROT
+function drawMandelbrot(fl){
+  const cx=W/2,cy=H/2;
+  const zoom=1.5+fl*0.5+Math.sin(frame*0.005)*0.3;
+  const iw=Math.floor(W/4),ih=Math.floor(H/4);
+  const id=ctx.createImageData(iw,ih);
+  const spk=getSpeaker();
+  for(let px=0;px<iw;px++){
+    for(let py=0;py<ih;py++){
+      let x0=(px-iw/2)/(iw*0.25*zoom),y0=(py-ih/2)/(ih*0.25*zoom);
+      let x=0,y=0,iter=0,maxIter=40;
+      while(x*x+y*y<4&&iter<maxIter){const xt=x*x-y*y+x0;y=2*x*y+y0;x=xt;iter++;}
+      const idx=(py*iw+px)*4;
+      if(iter===maxIter){id.data[idx]=0;id.data[idx+1]=0;id.data[idx+2]=0;}
+      else{const t=iter/maxIter;
+        id.data[idx]=spk==='human'?Math.floor(t*255*fl):Math.floor(t*100*fl);
+        id.data[idx+1]=Math.floor(t*255);
+        id.data[idx+2]=spk==='human'?0:Math.floor((1-t)*200);}
+      id.data[idx+3]=200;
+    }
+  }
+  const tmp=document.createElement('canvas');tmp.width=iw;tmp.height=ih;
+  tmp.getContext('2d').putImageData(id,0,0);ctx.drawImage(tmp,0,0,W,H);
+}
+
+// ============================================================
+// CAROUSEL
+// ============================================================
+const carouselEl = document.getElementById('carousel');
+const dotsEl = document.getElementById('dots');
+
+MODES.forEach(function(mode,i){
+  const card=document.createElement('div');
+  card.className='mode-card'+(i===0?' active':'');
+  card.innerHTML='<span class="card-icon">'+mode.icon+'</span><span class="card-label">'+mode.name+'</span>';
+  card.addEventListener('click',function(){selectMode(i);});
+  carouselEl.appendChild(card);
+  const dot=document.createElement('div');
+  dot.className='dot'+(i===0?' active':'');
+  dotsEl.appendChild(dot);
+});
+
+// Scroll to Brainwave (index 0) on load
+setTimeout(function(){
+  const cards=carouselEl.querySelectorAll('.mode-card');
+  if(cards[0]) cards[0].scrollIntoView({behavior:'auto',inline:'center',block:'nearest'});
+},100);
+
+function selectMode(idx){
+  currentMode=idx;
+  document.querySelectorAll('.mode-card').forEach(function(c,i){c.classList.toggle('active',i===idx);});
+  document.querySelectorAll('.dot').forEach(function(d,i){d.classList.toggle('active',i===idx);});
+  document.getElementById('mode-name').textContent=MODES[idx].name.toUpperCase();
+  const cards=carouselEl.querySelectorAll('.mode-card');
+  cards[idx].scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+  nebulaParticles=[];lavaParticles=[];solarArcs=[];stars=[];
+}
+
+carouselEl.addEventListener('scroll',function(){
+  const center=carouselEl.scrollLeft+carouselEl.clientWidth/2;
+  const cards=[...carouselEl.querySelectorAll('.mode-card')];
+  let closest=0,minDist=Infinity;
+  cards.forEach(function(card,i){const d=Math.abs(card.offsetLeft+card.offsetWidth/2-center);if(d<minDist){minDist=d;closest=i;}});
+  if(closest!==currentMode)selectMode(closest);
+});
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight')selectMode(Math.min(currentMode+1,MODES.length-1));
+  if(e.key==='ArrowLeft')selectMode(Math.max(currentMode-1,0));
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setStatus(msg,cls){const el=document.getElementById('status');el.textContent='_ '+msg+' _';el.className=cls||'';}
+function setActiveBtn(id){
+  ['btn-demo','btn-tab'].forEach(function(b){document.getElementById(b).classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+}
+let uiVisible=true;
+document.getElementById('toggle-ui').onclick=function(){
+  uiVisible=!uiVisible;
+  document.getElementById('ui').classList.toggle('hidden',!uiVisible);
+  document.getElementById('toggle-ui').textContent=uiVisible?'x':'=';
+};
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function loop(){
+  requestAnimationFrame(loop); frame++;
+
+  // Audio processing
+  if(audioMode==='demo'){
+    demoT+=0.04;
+    // Demo alternates between "human" and "ai" speaker every few seconds
+    const demoSpeaker = Math.floor(demoT/4)%2===0 ? 'ai' : 'human';
+    setSpeaker(demoSpeaker);
+    const d=Math.min(1,0.2+0.6*Math.abs(Math.sin(demoT*0.6))+0.2*Math.random());
+    amp+=(d-amp)*0.08;
+    for(let i=0;i<8;i++) freqBands[i]+=(Math.random()*d-freqBands[i])*0.12;
+  } else if(audioMode==='both') {
+    updateDualAudio();
+  } else if(audioMode==='mic' && micAnalyser) {
+    const raw=readAnalyser(micAnalyser,micFftData,10);
+    amp+=(raw-amp)*0.12;
+    setSpeaker(amp>SILENCE_THRESHOLD?'human':'none');
+    micAnalyser.getByteFrequencyData(micFftData);
+    const bsz=Math.floor(micFftData.length/8);
+    for(let i=0;i<8;i++){let s=0;for(let j=0;j<bsz;j++)s+=micFftData[i*bsz+j];freqBands[i]+=(Math.min(1,(s/(bsz*255))*10)-freqBands[i])*0.12;}
+  } else if(audioMode==='tab' && tabAnalyser) {
+    const raw=readAnalyser(tabAnalyser,tabFftData,14);
+    amp+=(raw-amp)*0.12;
+    setSpeaker(amp>SILENCE_THRESHOLD?'ai':'none');
+    tabAnalyser.getByteFrequencyData(tabFftData);
+    const bsz=Math.floor(tabFftData.length/8);
+    for(let i=0;i<8;i++){let s=0;for(let j=0;j<bsz;j++)s+=tabFftData[i*bsz+j];freqBands[i]+=(Math.min(1,(s/(bsz*255))*14)-freqBands[i])*0.12;}
+  } else {
+    amp+=(0.015-amp)*0.04; // breathing idle
+  }
+
+  const targetFlow=amp;
+  flowState+=(targetFlow-flowState)*0.05;
+  if(amp>0.65&&frame-lastRing>30){rings.push({r:0,alpha:1});lastRing=frame;}
+  document.getElementById('flow-fill').style.height=(flowState*100)+'%';
+  document.getElementById('mode-name').classList.toggle('active',flowState>0.15);
+
+  if(audioMode!=='none'&&flowState>0.8) setStatus('FLOW STATE : ONE','flow');
+
+  // Clear with slight trail
+  ctx.fillStyle='rgba(0,0,0,'+(0.09+(1-flowState)*0.07)+')';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw
+  MODES[currentMode].draw(flowState);
+}
+
+resize();
+loop();
+
+if('wakeLock' in navigator){
+  navigator.wakeLock.request('screen').catch(function(){});
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible') navigator.wakeLock.request('screen').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
