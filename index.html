@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>VIVID ONE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+:root {
+  --green: #00ff41;
+  --human: #ff8c42;
+  --ai: #00ff41;
+  --safe-bottom: env(safe-area-inset-bottom,0px);
+  --safe-top: env(safe-area-inset-top,0px);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body { width:100%; height:100%; overflow:hidden; background:#000; }
+canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
+
+/* TOP BAR */
+#topbar {
+  position:fixed; top:calc(12px + var(--safe-top)); left:0; right:0;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:0 16px; z-index:20; pointer-events:none;
+}
+#logo {
+  font-family:'Orbitron',monospace; font-size:13px;
+  color:var(--green); letter-spacing:0.4em;
+  text-shadow:0 0 10px var(--green);
+}
+#tagline {
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:rgba(0,255,65,0.4); letter-spacing:0.15em;
+  text-transform:uppercase;
+}
+#toggle-ui {
+  width:36px; height:36px; background:rgba(0,255,65,0.08);
+  border:1px solid rgba(0,255,65,0.3); border-radius:3px; color:var(--green);
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; z-index:20; pointer-events:all;
+}
+
+/* SPEAKER INDICATOR */
+#speaker-indicator {
+  position:fixed; top:50%; left:20px; transform:translateY(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  z-index:15; pointer-events:none;
+}
+.speaker-dot {
+  width:8px; height:8px; border-radius:50%;
+  transition:all 0.3s; opacity:0.2;
+}
+#dot-human { background:var(--human); }
+#dot-ai { background:var(--ai); }
+#speaker-label {
+  font-family:'Share Tech Mono',monospace; font-size:8px;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:rgba(255,255,255,0.3); writing-mode:vertical-rl;
+  text-orientation:mixed; transform:rotate(180deg);
+  transition:color 0.3s;
+}
+
+/* FLOW METER */
+#flow-meter {
+  position:fixed; right:14px; top:50%; transform:translateY(-50%);
+  width:3px; height:120px; background:rgba(0,255,65,0.1);
+  border:1px solid rgba(0,255,65,0.2); z-index:15; border-radius:2px; overflow:hidden;
+}
+#flow-fill {
+  position:absolute; bottom:0; left:0; right:0;
+  background:linear-gradient(to top,#00ff41,#fff);
+  transition:height 0.1s; box-shadow:0 0 8px #00ff41;
+}
+
+/* MODE NAME */
+#mode-display {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-60%);
+  text-align:center; z-index:10; pointer-events:none;
+}
+#mode-name {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(18px,4vw,42px); font-weight:700;
+  color:rgba(255,255,255,0.06); letter-spacing:0.15em;
+  transition:all 0.5s;
+}
+#mode-name.active { color:#fff; text-shadow:0 0 20px var(--green), 0 0 60px rgba(0,255,65,0.3); }
+
+/* CAPTIONS */
+#captions {
+  position:fixed; bottom:185px; left:50%; transform:translateX(-50%);
+  width:80%; max-width:700px; text-align:center; z-index:15; pointer-events:none;
+}
+#caption-text {
+  font-family:'Share Tech Mono',monospace; font-size:15px;
+  color:rgba(255,255,255,0.9); letter-spacing:0.05em; line-height:1.6;
+  text-shadow:0 0 10px rgba(0,255,65,0.5);
+  background:rgba(0,0,0,0.5); padding:8px 16px; border-radius:4px;
+  border-left:2px solid var(--green); opacity:0; transition:opacity 0.3s;
+}
+#caption-text.visible { opacity:1; }
+#caption-text.human-voice { border-left-color:var(--human); text-shadow:0 0 10px rgba(255,140,66,0.4); }
+
+/* BOTTOM UI */
+#ui {
+  position:fixed; bottom:0; left:0; right:0;
+  padding:10px 12px calc(10px + var(--safe-bottom));
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  background:linear-gradient(transparent, rgba(0,8,0,0.95));
+  z-index:10; transition:opacity 0.5s;
+}
+#ui.hidden { opacity:0; pointer-events:none; }
+
+/* CAROUSEL */
+#carousel {
+  display:flex; align-items:center;
+  gap:6px; padding:8px 10px;
+  overflow-x:auto; scrollbar-width:none;
+  width:100%; box-sizing:border-box;
+  -webkit-overflow-scrolling:touch;
+}
+#carousel::-webkit-scrollbar { display:none; }
+.mode-card {
+  flex:1 1 0; min-width:0; height:70px; border-radius:5px;
+  border:1px solid rgba(0,255,65,0.2); background:rgba(0,255,65,0.04);
+  cursor:pointer; transition:all 0.3s ease;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+}
+.mode-card.active {
+  border-color:var(--green); background:rgba(0,255,65,0.12);
+  box-shadow:0 0 20px rgba(0,255,65,0.4);
+  transform:scaleY(1.25) scaleX(1.25);
+  z-index:2; position:relative;
+  flex:1.25 1 0;
+}
+.card-icon { font-size:20px; }
+.card-label {
+  font-size:8px; color:rgba(0,255,65,0.7); letter-spacing:0.08em;
+  text-transform:uppercase; font-family:'Share Tech Mono',monospace;
+  text-align:center; padding:0 4px;
+}
+.mode-card.active .card-label { color:#fff; }
+
+#dots { display:flex; justify-content:center; gap:5px; margin-top:6px; }
+.dot { width:4px; height:4px; border-radius:50%; background:rgba(0,255,65,0.2); transition:all 0.3s; }
+.dot.active { background:var(--green); box-shadow:0 0 6px var(--green); width:14px; border-radius:2px; }
+
+.btn-row { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+button {
+  background:rgba(0,255,65,0.07); border:1px solid rgba(0,255,65,0.3);
+  color:var(--green); padding:8px 16px; border-radius:3px; cursor:pointer;
+  font-size:11px; font-family:'Share Tech Mono',monospace;
+  min-height:34px; letter-spacing:0.05em; text-transform:uppercase;
+  transition:all 0.15s; -webkit-appearance:none;
+}
+button:hover { background:rgba(0,255,65,0.18); border-color:var(--green); }
+button.active { background:rgba(0,255,65,0.22); border-color:var(--green); color:#fff; box-shadow:0 0 10px rgba(0,255,65,0.35); }
+button.human-active { background:rgba(255,140,66,0.15); border-color:var(--human); color:var(--human); box-shadow:0 0 10px rgba(255,140,66,0.3); }
+
+#status {
+  color:rgba(0,255,65,0.5); font-size:10px;
+  font-family:'Share Tech Mono',monospace; letter-spacing:0.1em; text-transform:uppercase;
+}
+#status.live { color:var(--green); text-shadow:0 0 8px var(--green); }
+#status.error { color:#ff4141; }
+#status.flow { color:#fff; text-shadow:0 0 20px #fff, 0 0 40px rgba(0,255,65,0.8); }
+#status.human { color:var(--human); text-shadow:0 0 8px var(--human); }
+
+/* VERSION BADGE */
+#version-badge {
+  position:fixed; bottom:calc(8px + var(--safe-bottom)); left:12px;
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  color:rgba(0,255,65,0.55); letter-spacing:0.12em;
+  z-index:25; pointer-events:none; user-select:none;
+  text-shadow:0 0 6px rgba(0,255,65,0.3);
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="version-badge">VIVID ONE v0.1.1</div>
+
+<div id="topbar">
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <div id="logo">VIVID ONE</div>
+    <div id="tagline">The voice, made visible.</div>
+  </div>
+  <div id="toggle-ui">x</div>
+</div>
+
+<div id="speaker-indicator">
+  <div class="speaker-dot" id="dot-human"></div>
+  <div id="speaker-label">—</div>
+  <div class="speaker-dot" id="dot-ai"></div>
+</div>
+
+<div id="flow-meter"><div id="flow-fill" style="height:0%"></div></div>
+
+<div id="mode-display">
+  <div id="mode-name">BRAINWAVE</div>
+</div>
+
+<div id="captions">
+  <div id="caption-text"></div>
+</div>
+
+<div id="ui">
+  <div style="width:100%">
+    <div id="carousel"></div>
+    <div id="dots"></div>
+  </div>
+  <div class="btn-row">
+    <button onclick="startDemo()" id="btn-demo">DEMO</button>
+    <button onclick="startMic()" id="btn-mic">🎤 MY VOICE</button>
+    <button onclick="startTabAudio()" id="btn-tab">TAB AUDIO</button>
+    <button onclick="toggleCaptions()" id="btn-cap">CC OFF</button>
+  </div>
+  <div id="status">_ the voice, made visible _</div>
+</div>
+
+<script>
+// ============================================================
+// VIVID ONE — VERSION HISTORY
+// ============================================================
+// v0.2.3 — 2026-03-03m
+//   ADD: Tundra — vast arctic landscape. Cold blue-grey sky, atmospheric
+//        horizon haze, dark jagged treeline silhouette, flat snow ground
+//        with depth bands, 8 organic bezier snow drifts, wind-rippled
+//        surface texture, 380 snow particles in 3 depth layers (far=crisp,
+//        close=soft blurred), horizontal wind streaks on high amplitude,
+//        faint aurora in sky when voice is strong. Human voice warms palette,
+//        AI voice cools it. Silence = stillness. Voice = wind and snow.
+//
+// v0.2.2 — 2026-03-03l
+//   RENAME: Volcano → Lava Flow
+//
+// v0.2.1 — 2026-03-03k
+//   REDESIGN: Volcano — ground-level Kilauea surface view. No mountain.
+//             Entire canvas is lava surface. Dark cooled rock base with
+//             4 wide glowing lava rivers (multi-layer radial ellipses),
+//             9 secondary hot spots, 18 irregular dark crust patches,
+//             55 glowing crack network lines pulsing with voice,
+//             slow shimmer motion on river surfaces.
+//
+// v0.2.0 — 2026-03-03j
+//   REDESIGN: Volcano — full organic rebuild. Bezier mountain silhouette,
+//             7 blob-based lava flows with quadratic curve edges,
+//             per-segment width wobble for irregular organic boundaries,
+//             pooling flows that spread wide at base, molten inner core
+//             highlight, cooled dark crust on flow edges, multi-layer
+//             caldera glow, atmospheric heat above peak.
+//
+// v0.1.9 — 2026-03-03i
+//   REDESIGN: Volcano rebuilt as cinematic lava flow — slow viscous
+//             rivers of molten rock descending a mountain silhouette.
+//             6 independent flows with physics-based meandering paths,
+//             heat gradient (white-yellow top → deep red-black cooled),
+//             glowing leading edge, dark cooling crust, caldera glow
+//             at peak. Voice amplitude drives flow speed.
+//
+// v0.1.8 — 2026-03-03h
+//   FIX: IndexSizeError on arc() — negative radius crash from floating
+//        point precision when fl near zero. Patched ctx.arc() globally
+//        with Math.max(0.001, r) safety wrapper. Also guarded ellipse()
+//        in Atom and Vocal Cords modes.
+//
+// v0.1.7 — 2026-03-03g
+//   ADD: Protein Fold — 40-segment spring chain folds with voice amplitude
+//        Alpha helices (glow dots), beta sheets (diamonds), loop regions,
+//        hydrogen bonds (dashed lines between nearby segments)
+//        Science/Bio category NOW COMPLETE (6/6)
+//   Total modes: 16
+//
+// v0.1.6 — 2026-03-03f
+//   ADD: DNA Helix — double helix rotates + pulses with voice frequency
+//   ADD: Neural Net — firing nodes/edges, signals propagate with amplitude
+//   ADD: Heartbeat — ECG-style trace, sharp spikes on voice beats
+//   ADD: Vocal Cords — layered cords open/vibrate with voice amplitude
+//   ADD: Atom — nucleus + 3 orbital electrons, speed driven by voice
+//   Total modes: 15 (was 10)
+//
+// v0.1.5 — 2026-03-03e
+//   REDESIGN: Carousel rebuilt as full-width flex — all 10 mode cards
+//             visible simultaneously across the entire screen width
+//   ADD: Active card scales 25% larger (scaleX+scaleY 1.25) to draw
+//        attention without disrupting layout — uses flex:1.25 to claim
+//        proportional space
+//   REMOVE: Scroll snap logic — no longer needed, all cards always visible
+//   REMOVE: Scroll event listener — replaced by click/keyboard only
+//
+// v0.1.4 — 2026-03-03d
+//   FIX: Carousel centering — corrected padding math from 50vw-55px to
+//        50vw-60px, added scroll-padding to match, added box-sizing
+//   FIX: Removed scale(1.06) from active card — was shifting visual
+//        center of selected card off-axis
+//
+// v0.1.3 — 2026-03-03c
+//   FIX: Version badge opacity increased from 0.25 to 0.55 — was
+//        rendering nearly invisible against black background
+//   FIX: Version badge z-index raised to 25 — ensures always on top
+//   ADD: Subtle text-shadow glow on version badge for legibility
+//
+// v0.1.2 — 2026-03-03b
+//   FIX: Carousel centering on load — replaced fragile 100ms timeout
+//        with document.fonts.ready + double-pass snap to guarantee
+//        correct position after Google Fonts and layout settle
+//
+// v0.1.1 — 2026-03-03a
+//   FIX: setActiveBtn now clears all 3 buttons incl. human-active style
+//   FIX: startTabAudio no longer auto-starts captions (respects CC toggle)
+//   FIX: captionEl lazily assigned to avoid early DOM reference errors
+//   FIX: Carousel padding uses 50vw for reliable centering across all screens
+//   ADD: Version badge visible in UI + tracked in code comments
+//
+// v0.1.0 — 2026-03-02
+//   Initial MVP build — 10 visualization modes
+//   Dual voice detection (mic + tab audio)
+//   Photosensitivity-safe rendering (no strobing/flashing)
+//   Mobile-responsive canvas, wake lock support
+// ============================================================
+
+const VIVID_VERSION = 'v0.2.3';
+const VIVID_BUILD_DATE = '2026-03-03m';
+// ============================================================
+// SPEAKER STATE
+// 'none' | 'human' | 'ai' | 'silence'
+// ============================================================
+let speakerState = 'none';
+let speakerTimer = null;
+let humanAmp = 0, aiAmp = 0;
+let micAnalyser = null, micFftData = null;
+let tabAnalyser = null, tabFftData = null;
+
+// Palette per speaker
+const PALETTE = {
+  human: { primary:'#ff8c42', secondary:'#ffcc66', glow:'rgba(255,140,66,', waveStyle:'organic' },
+  ai:    { primary:'#00ff41', secondary:'#00ccff', glow:'rgba(0,255,65,',   waveStyle:'geometric' },
+  none:  { primary:'#00ff41', secondary:'#00ff41', glow:'rgba(0,255,65,',   waveStyle:'geometric' }
+};
+
+function getSpeaker() { return speakerState === 'none' ? 'ai' : speakerState; }
+function getPalette() { return PALETTE[getSpeaker()] || PALETTE.ai; }
+
+function setSpeaker(s) {
+  if(speakerState === s) return;
+  speakerState = s;
+  const pal = getPalette();
+  // Update speaker indicator
+  const dh = document.getElementById('dot-human');
+  const da = document.getElementById('dot-ai');
+  const sl = document.getElementById('speaker-label');
+  dh.style.opacity = s==='human' ? '1' : '0.15';
+  dh.style.boxShadow = s==='human' ? '0 0 10px #ff8c42' : 'none';
+  da.style.opacity = s==='ai' ? '1' : '0.15';
+  da.style.boxShadow = s==='ai' ? '0 0 8px #00ff41' : 'none';
+  sl.textContent = s==='human' ? 'YOU' : s==='ai' ? 'AI' : '—';
+  sl.style.color = s==='human' ? '#ff8c42' : s==='ai' ? '#00ff41' : 'rgba(255,255,255,0.3)';
+
+  // Update flow meter color
+  document.getElementById('flow-fill').style.background =
+    s==='human' ? 'linear-gradient(to top,#ff8c42,#ffcc66)'
+                : 'linear-gradient(to top,#00ff41,#fff)';
+}
+
+// ============================================================
+// MODES
+// ============================================================
+const MODES = [
+  { name:'Brainwave',    icon:'∿', draw:drawBrainwave },
+  { name:'DNA Helix',    icon:'⌬', draw:drawDNAHelix },
+  { name:'Neural Net',   icon:'⬡', draw:drawNeuralNet },
+  { name:'Heartbeat',    icon:'♥', draw:drawHeartbeat },
+  { name:'Vocal Cords',  icon:'◎', draw:drawVocalCords },
+  { name:'Atom',         icon:'⚛', draw:drawAtom },
+  { name:'Protein Fold', icon:'⟳', draw:drawProteinFold },
+  { name:'Matrix Rain',  icon:'▦', draw:drawMatrixRain },
+  { name:'Nebula',       icon:'✦', draw:drawNebula },
+  { name:'Black Hole',   icon:'◉', draw:drawBlackHole },
+  { name:'Solar Storm',  icon:'☀', draw:drawSolarStorm },
+  { name:'Aurora',       icon:'❋', draw:drawAurora },
+  { name:'Star Field',   icon:'★', draw:drawStarField },
+  { name:'Ocean Waves',  icon:'〰', draw:drawOcean },
+  { name:'Lava Flow',    icon:'🌋', draw:drawVolcano },
+  { name:'Tundra',       icon:'❄', draw:drawTundra },
+  { name:'Mandelbrot',   icon:'◈', draw:drawMandelbrot },
+];
+
+// ============================================================
+// CANVAS
+// ============================================================
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+
+// Safety patch — arc() crashes on negative radius due to floating point precision
+const _arc = ctx.arc.bind(ctx);
+ctx.arc = function(x, y, r, start, end, ccw) {
+  _arc(x, y, Math.max(0.001, r), start, end, ccw);
+};
+let W, H, DPR;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = canvas.width = window.innerWidth * DPR;
+  H = canvas.height = window.innerHeight * DPR;
+  canvas.style.width = window.innerWidth+'px';
+  canvas.style.height = window.innerHeight+'px';
+  initMatrix();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', function(){ setTimeout(resize,200); });
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioCtx = null;
+let amp = 0, freqBands = new Array(8).fill(0);
+let audioMode = 'none', flowState = 0, demoT = 0;
+let frame = 0, rings = [], lastRing = 0;
+let currentMode = 0;
+let micStream = null, tabStream = null;
+
+function makeAnalyser(stream, sensitivity) {
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const an = audioCtx.createAnalyser();
+  an.fftSize = 1024;
+  an.smoothingTimeConstant = sensitivity==='tab' ? 0.55 : 0.65;
+  an.minDecibels = sensitivity==='tab' ? -92 : -78;
+  an.maxDecibels = sensitivity==='tab' ? -12 : -20;
+  const src = audioCtx.createMediaStreamSource(stream);
+  src.connect(an);
+  const fft = new Uint8Array(an.frequencyBinCount);
+  return { an, fft };
+}
+
+function readAnalyser(an, fft, multiplier) {
+  an.getByteFrequencyData(fft);
+  const sum = fft.reduce(function(a,b){return a+b;},0);
+  return Math.min(1,(sum/(fft.length*255))*multiplier);
+}
+
+function startDemo() {
+  audioMode='demo'; setStatus('SIMULATION ACTIVE','live'); setActiveBtn('btn-demo');
+  setSpeaker('ai');
+}
+
+function startMic() {
+  navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})
+    .then(function(stream){
+      micStream = stream;
+      const result = makeAnalyser(stream,'mic');
+      micAnalyser = result.an; micFftData = result.fft;
+      if(audioMode !== 'both') audioMode = 'mic';
+      setStatus('YOUR VOICE CONNECTED','human'); setActiveBtn('btn-mic');
+      document.getElementById('btn-mic').classList.add('human-active');
+    })
+    .catch(function(e){ setStatus('MIC ERROR: '+e.name,'error'); });
+}
+
+function startTabAudio() {
+  setStatus('SELECT CLAUDE TAB...','');
+  navigator.mediaDevices.getDisplayMedia({
+    video:{width:1,height:1},
+    audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}
+  }).then(function(stream){
+    const audioTracks = stream.getAudioTracks();
+    if(!audioTracks.length){
+      setStatus('NO AUDIO — CHECK SHARE AUDIO BOX','error');
+      stream.getTracks().forEach(function(t){t.stop();}); return;
+    }
+    stream.getVideoTracks().forEach(function(t){t.stop();});
+    tabStream = stream;
+    const result = makeAnalyser(stream,'tab');
+    tabAnalyser = result.an; tabFftData = result.fft;
+    // If mic already active, go dual mode
+    audioMode = micAnalyser ? 'both' : 'tab';
+    setStatus('CLAUDE VOICE CONNECTED','live'); setActiveBtn('btn-tab');
+    if(captionsOn) startCaptions();
+    audioTracks[0].onended=function(){
+      tabAnalyser=null; tabFftData=null;
+      audioMode = micAnalyser ? 'mic' : 'none';
+      setStatus('SIGNAL LOST',''); flowState=0; stopCaptions();
+    };
+  }).catch(function(e){ setStatus('ERR: '+e.name,'error'); });
+}
+
+// ============================================================
+// DUAL VOICE DETECTION
+// ============================================================
+let silenceFrames = 0;
+const SILENCE_THRESHOLD = 0.04;
+const SILENCE_FRAMES = 18; // ~0.3s of silence before "breathing"
+
+function updateDualAudio() {
+  let rawHuman = 0, rawAI = 0;
+
+  if(micAnalyser && micFftData) rawHuman = readAnalyser(micAnalyser, micFftData, 10);
+  if(tabAnalyser && tabFftData) rawAI = readAnalyser(tabAnalyser, tabFftData, 14);
+
+  humanAmp += (rawHuman - humanAmp) * 0.12;
+  aiAmp    += (rawAI    - aiAmp)    * 0.12;
+
+  // Determine who is speaking
+  const hSpeaking = humanAmp > SILENCE_THRESHOLD;
+  const aSpeaking = aiAmp    > SILENCE_THRESHOLD;
+
+  if(hSpeaking && humanAmp > aiAmp) {
+    setSpeaker('human'); silenceFrames = 0;
+    amp = humanAmp;
+  } else if(aSpeaking) {
+    setSpeaker('ai'); silenceFrames = 0;
+    amp = aiAmp;
+  } else {
+    silenceFrames++;
+    if(silenceFrames > SILENCE_FRAMES) {
+      // Breathing idle — keep last speaker but reduce amp
+      amp += (0.015 - amp) * 0.06; // gentle pulse, not zero
+    }
+  }
+
+  // Freq bands from dominant source
+  const an = (speakerState==='human' && micAnalyser) ? micAnalyser :
+             (tabAnalyser || micAnalyser);
+  const fft = (speakerState==='human' && micFftData) ? micFftData :
+              (tabFftData || micFftData);
+  if(an && fft) {
+    an.getByteFrequencyData(fft);
+    const mult = speakerState==='human' ? 10 : 14;
+    const bsz = Math.floor(fft.length/8);
+    for(let i=0;i<8;i++){
+      let s=0; for(let j=0;j<bsz;j++) s+=fft[i*bsz+j];
+      freqBands[i]+=(Math.min(1,(s/(bsz*255))*mult)-freqBands[i])*0.12;
+    }
+  }
+}
+
+// ============================================================
+// CAPTIONS
+// ============================================================
+let recognition=null, captionsOn=false, captionTimer=null;
+let captionEl = null; // assigned on first use to avoid early DOM reference
+
+function toggleCaptions() {
+  if(!captionEl) captionEl = document.getElementById('caption-text');
+  captionsOn=!captionsOn;
+  document.getElementById('btn-cap').textContent = captionsOn ? 'CC ON' : 'CC OFF';
+  if(captionsOn) startCaptions(); else stopCaptions();
+}
+
+function startCaptions() {
+  if(!captionEl) captionEl = document.getElementById('caption-text');
+  if(!captionsOn) return;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)) return;
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous=true; recognition.interimResults=true; recognition.lang='en-US';
+  recognition.onresult=function(e){
+    let t=''; for(let i=e.resultIndex;i<e.results.length;i++) t+=e.results[i][0].transcript;
+    captionEl.textContent=t;
+    captionEl.classList.add('visible');
+    captionEl.classList.toggle('human-voice', speakerState==='human');
+    clearTimeout(captionTimer);
+    captionTimer=setTimeout(function(){ captionEl.classList.remove('visible'); },3000);
+  };
+  recognition.onerror=function(){};
+  recognition.onend=function(){ if(captionsOn) recognition.start(); };
+  recognition.start();
+}
+
+function stopCaptions() {
+  if(recognition){recognition.stop();recognition=null;}
+  captionEl.classList.remove('visible');
+}
+
+// ============================================================
+// MATRIX RAIN
+// ============================================================
+const CHARS='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#@!$%∑∆π≡∞';
+const FS=14; let columns=[];
+function initMatrix(){
+  const cols=Math.floor(W/(FS*DPR));
+  columns=Array.from({length:cols},function(_,i){
+    return {x:i*FS*DPR,y:Math.random()*H*-1,speed:0.5+Math.random()*1.5,
+      chars:Array.from({length:20},function(){return CHARS[Math.floor(Math.random()*CHARS.length)];}),
+      charTimer:0,length:10+Math.floor(Math.random()*20)};
+  });
+}
+
+// ============================================================
+// VISUALIZATION MODES
+// ============================================================
+
+// 1. BRAINWAVE — dual voice signatures
+let wavePhase = 0;
+function drawBrainwave(fl) {
+  const cx=W/2, cy=H/2;
+  const pal = getPalette();
+  const spk = getSpeaker();
+  wavePhase += spk==='human' ? 0.025 : 0.018;
+
+  if(spk==='human') {
+    // HUMAN: warm, organic, irregular sine waves — flowing and natural
+    for(let band=0;band<6;band++){
+      const bandAmp = freqBands[band]||amp;
+      const yOffset = cy+(band-2.5)*55*DPR;
+      const hue = 20+band*12; // orange to yellow
+      ctx.beginPath();
+      ctx.strokeStyle='hsla('+hue+',100%,65%,'+(0.12+fl*0.55*(1-band*0.08))+')';
+      ctx.lineWidth=(1.5+band*0.4)*DPR;
+      for(let x=0;x<W;x++){
+        const t=x/W;
+        // Organic: multiple overlapping irregular frequencies
+        const wAmp=35*DPR*(0.3+bandAmp*2)*(1-band*0.12);
+        const y=yOffset
+          +Math.sin(t*Math.PI*2*(2+band)+wavePhase*(1+band*0.3))*wAmp
+          +Math.sin(t*Math.PI*(3.7+band*0.8)+wavePhase*1.6)*wAmp*0.5
+          +Math.sin(t*Math.PI*(1.2+band*0.3)+wavePhase*0.7)*wAmp*0.25;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+  } else {
+    // AI: cool green/cyan, precise geometric waves — clean and mathematical
+    for(let band=0;band<6;band++){
+      const bandAmp=freqBands[band]||amp;
+      const yOffset=cy+(band-2.5)*55*DPR;
+      const hue=band%2===0?140:190; // green / cyan alternating
+      ctx.beginPath();
+      ctx.strokeStyle='hsla('+hue+',100%,55%,'+(0.13+fl*0.5*(1-band*0.08))+')';
+      ctx.lineWidth=(1.5+band*0.3)*DPR;
+      for(let x=0;x<W;x++){
+        const t=x/W;
+        // Geometric: precise harmonics, clean sine
+        const wAmp=30*DPR*(0.3+bandAmp*2)*(1-band*0.1);
+        const freq=2+band*1.5;
+        const y=yOffset
+          +Math.sin(t*Math.PI*2*freq+wavePhase)*wAmp
+          +Math.sin(t*Math.PI*4*(freq+1)+wavePhase*1.3)*wAmp*0.3;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Center glow — color matches speaker
+  if(fl>0.3){
+    const r=Math.min(W,H)*0.14*fl;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,pal.glow+(0.25*fl)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+
+  // Rings on beats
+  rings.forEach(function(ring){
+    ring.r+=5*DPR; ring.alpha*=0.93;
+    ctx.beginPath(); ctx.arc(cx,cy,ring.r,0,Math.PI*2);
+    ctx.strokeStyle=pal.glow+ring.alpha*fl+')';
+    ctx.lineWidth=1.5*DPR; ctx.stroke();
+  });
+  rings=rings.filter(function(r){return r.alpha>0.01;});
+}
+
+// 2. MATRIX RAIN
+function drawMatrixRain(fl) {
+  const pal=getPalette(); const spk=getSpeaker();
+  ctx.font=(FS*DPR)+"px 'Share Tech Mono',monospace";
+  columns.forEach(function(col){
+    col.charTimer++;
+    col.y+=col.speed*(0.3+fl*0.7)*DPR;
+    if(col.charTimer%Math.max(2,Math.floor(8-fl*6))===0)
+      col.chars[Math.floor(Math.random()*col.chars.length)]=CHARS[Math.floor(Math.random()*CHARS.length)];
+    if(col.y>H+col.length*FS*DPR){col.y=-col.length*FS*DPR;col.speed=0.5+Math.random()*1.5;}
+    for(let i=0;i<col.chars.length;i++){
+      const cy2=col.y+i*FS*DPR;
+      if(cy2<0||cy2>H) continue;
+      const isHead=i===col.chars.length-1, fade=i/col.chars.length;
+      if(spk==='human') {
+        ctx.fillStyle=isHead?'rgba(255,220,180,0.95)':'rgba('+(Math.floor(200*fade))+','+(Math.floor(80*fade))+',0,'+(fade*(0.5+fl*0.4))+')';
+      } else {
+        ctx.fillStyle=isHead?'rgba(200,255,200,0.95)':'rgba(0,'+(Math.floor(200*fade+fl*55*fade))+','+(Math.floor(fl*20*fade))+','+(fade*(0.5+fl*0.4))+')';
+      }
+      ctx.fillText(col.chars[i],col.x,cy2);
+    }
+  });
+}
+
+// 3. NEBULA
+let nebulaParticles=[];
+function initNebula(){ nebulaParticles=Array.from({length:200},function(){ return {x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.5,vy:(Math.random()-0.5)*0.5,r:Math.random()*3*DPR,hue:Math.random()*60+260}; }); }
+function drawNebula(fl){
+  if(!nebulaParticles.length) initNebula();
+  const spk=getSpeaker();
+  nebulaParticles.forEach(function(p){
+    p.x+=p.vx*(1+fl*3);p.y+=p.vy*(1+fl*3);
+    if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    const hue=spk==='human'?p.hue*0.3+20:p.hue; // warm for human
+    const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*(2+fl*4));
+    g.addColorStop(0,'hsla('+hue+',100%,70%,'+(0.3+fl*0.5)+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.r*(2+fl*4),0,Math.PI*2);ctx.fill();
+  });
+}
+
+// 4. BLACK HOLE
+function drawBlackHole(fl){
+  const cx=W/2,cy=H/2;
+  for(let i=0;i<3;i++){
+    const r=Math.min(W,H)*(0.05+i*0.08+fl*0.05);
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(0.7,'rgba(80,0,120,'+(0.3+fl*0.4)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+  }
+  for(let i=0;i<12;i++){
+    const angle=i/12*Math.PI*2+frame*0.01;
+    ctx.beginPath();ctx.strokeStyle='rgba(120,0,255,'+(0.1+fl*0.4)+')';ctx.lineWidth=DPR;
+    for(let r=20*DPR;r<Math.min(W,H)*0.4;r+=2){
+      const a=angle+r*0.008;const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;
+      if(r===20*DPR)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+// 5. SOLAR STORM
+let solarArcs=[];
+function drawSolarStorm(fl){
+  const cx=W/2,cy=H/2;
+  const spk=getSpeaker();
+  if(frame%20===0||fl>0.7) solarArcs.push({angle:Math.random()*Math.PI*2,len:0,speed:2+Math.random()*3,hue:spk==='human'?20+Math.random()*30:20+Math.random()*40});
+  solarArcs=solarArcs.filter(function(a){return a.len<Math.min(W,H)*0.5;});
+  solarArcs.forEach(function(arc){
+    arc.len+=arc.speed*(1+fl*4)*DPR;
+    ctx.beginPath();ctx.arc(cx,cy,arc.len,arc.angle,arc.angle+0.8);
+    ctx.strokeStyle='hsla('+arc.hue+',100%,60%,'+(0.4+fl*0.5)+')';ctx.lineWidth=(2+fl*3)*DPR;ctx.stroke();
+  });
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.min(W,H)*0.15*(0.5+fl));
+  g.addColorStop(0,'rgba(255,200,50,'+(0.3+fl*0.4)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(W,H)*0.15*(0.5+fl),0,Math.PI*2);ctx.fill();
+}
+
+// 6. AURORA
+function drawAurora(fl){
+  const spk=getSpeaker();
+  for(let band=0;band<5;band++){
+    const hue=spk==='human'?30+band*15:100+band*30;
+    ctx.beginPath();
+    const yBase=H*0.3+band*H*0.08;
+    for(let x=0;x<=W;x+=4){
+      const t=x/W;
+      const y=yBase+Math.sin(t*Math.PI*3+frame*0.02+band)*80*DPR*(0.3+fl)+Math.cos(t*Math.PI*5+frame*0.015)*40*DPR*fl;
+      if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+    const g=ctx.createLinearGradient(0,yBase-80*DPR,0,yBase+80*DPR);
+    g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(0.5,'hsla('+hue+',100%,60%,'+(0.05+fl*0.15)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.fill();
+  }
+}
+
+// 7. STAR FIELD
+let stars=[];
+function initStars(){ stars=Array.from({length:300},function(){return {x:(Math.random()-0.5)*W,y:(Math.random()-0.5)*H,z:Math.random()*W};}); }
+function drawStarField(fl){
+  if(!stars.length)initStars();
+  const cx=W/2,cy=H/2;
+  const spk=getSpeaker();
+  stars.forEach(function(star){
+    star.z-=(2+fl*8)*DPR;if(star.z<=0)star.z=W;
+    const sx=cx+(star.x/star.z)*W,sy=cy+(star.y/star.z)*H;
+    const r=Math.max(0.5,(1-star.z/W)*3)*DPR,bright=1-star.z/W;
+    ctx.fillStyle=spk==='human'?'rgba(255,'+(Math.floor(180+bright*75))+','+(Math.floor(bright*100))+','+bright+')'
+                               :'rgba(255,255,255,'+bright+')';
+    ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.fill();
+  });
+}
+
+// 8. OCEAN
+function drawOcean(fl){
+  const spk=getSpeaker();
+  for(let layer=0;layer<4;layer++){
+    ctx.beginPath();
+    const yBase=H*(0.4+layer*0.12);
+    for(let x=0;x<=W;x+=3){
+      const t=x/W;
+      const y=yBase+Math.sin(t*Math.PI*4+frame*0.03+layer)*30*DPR*(0.5+fl)+Math.cos(t*Math.PI*6+frame*0.02)*20*DPR*fl;
+      if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+    const r=spk==='human'?Math.floor(100+layer*20):0;
+    const g=spk==='human'?Math.floor(60+layer*10):Math.floor(80+layer*20);
+    const b=spk==='human'?Math.floor(40+layer*10):Math.floor(150+layer*20);
+    ctx.fillStyle='rgba('+r+','+g+','+b+','+(0.15+fl*0.2)+')';
+    ctx.fill();
+  }
+}
+
+// 9. VOLCANO — Kilauea ground-level lava surface
+let lavaFlows = [];
+let lavaCracks = [];
+let lavaInit = false;
+
+function initLavaFlows() {
+  lavaInit = true;
+  lavaFlows = [];
+  lavaCracks = [];
+
+  // Main lava rivers — wide organic channels flowing across screen
+  const rivers = [
+    { cx: W*0.5,  cy: H*0.45, rx: W*0.38, ry: H*0.22, angle: -0.15 },
+    { cx: W*0.35, cy: H*0.68, rx: W*0.28, ry: H*0.16, angle: 0.2  },
+    { cx: W*0.72, cy: H*0.72, rx: W*0.22, ry: H*0.14, angle: -0.1 },
+    { cx: W*0.2,  cy: H*0.35, rx: W*0.18, ry: H*0.1,  angle: 0.3  },
+  ];
+  rivers.forEach(function(r){ lavaFlows.push(r); });
+
+  // Crack network — irregular lines through dark crust
+  for(let c=0; c<55; c++) {
+    const startX = Math.random()*W;
+    const startY = Math.random()*H;
+    const len = 40 + Math.random()*120;
+    const angle = Math.random()*Math.PI*2;
+    const branches = [];
+    let bx = startX, by = startY;
+    const segs = 4 + Math.floor(Math.random()*6);
+    for(let s=0; s<segs; s++) {
+      const segLen = len/segs;
+      const jitter = (Math.random()-0.5)*0.6;
+      bx += Math.cos(angle + jitter)*segLen;
+      by += Math.sin(angle + jitter)*segLen;
+      branches.push({x:bx, y:by});
+    }
+    lavaCracks.push({
+      x: startX, y: startY,
+      branches,
+      glow: Math.random(),         // how bright this crack glows
+      phase: Math.random()*Math.PI*2,
+      width: 0.5 + Math.random()*2.5
+    });
+  }
+}
+
+function drawVolcano(fl) {
+  if(!lavaInit || !lavaFlows.length) initLavaFlows();
+  const spk = getSpeaker();
+
+  // Base — dark cooled volcanic rock, fills entire canvas
+  ctx.fillStyle = 'rgba(8,3,1,0.92)';
+  ctx.fillRect(0,0,W,H);
+
+  // Add dark rock texture — subtle radial patches
+  for(let r=0; r<12; r++) {
+    const rx = (r*W*0.19 + frame*0.08) % W;
+    const ry = (r*H*0.23 + Math.sin(r)*H*0.3) % H;
+    const rg = ctx.createRadialGradient(rx,ry,0,rx,ry,W*0.12);
+    rg.addColorStop(0,'rgba(18,7,2,0.4)');
+    rg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rg;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Draw main lava rivers — wide glowing channels
+  lavaFlows.forEach(function(river, ri) {
+    const pulse = Math.sin(frame*0.012 + ri*1.4 + river.angle*3)*0.12;
+    const flowStretch = 1 + fl*0.25 + pulse;
+
+    // Multiple glow layers — outermost dim, innermost bright
+    for(let layer=4; layer>=0; layer--) {
+      const layerT = layer/4; // 0=outer dim, 1=inner bright
+      const rx = river.rx * (0.5 + layerT*0.5) * flowStretch;
+      const ry = river.ry * (0.5 + layerT*0.5) * (0.6+fl*0.5);
+
+      ctx.save();
+      ctx.translate(river.cx, river.cy);
+      ctx.rotate(river.angle + Math.sin(frame*0.006+ri)*0.04);
+
+      // Brightness: outer=dark orange, inner=bright yellow-white
+      let r,g,b,a;
+      if(layer===0){ r=255;g=230;b=80; a=0.55+fl*0.3; }       // core: yellow-white
+      else if(layer===1){ r=255;g=140;b=10; a=0.45+fl*0.25; }  // bright orange
+      else if(layer===2){ r=220;g=70;b=5; a=0.35+fl*0.2; }     // mid orange
+      else if(layer===3){ r=150;g=30;b=2; a=0.25+fl*0.15; }    // deep red
+      else { r=60;g=10;b=1; a=0.15+fl*0.1; }                   // outer dark red
+
+      const eg = ctx.createRadialGradient(0,0,0,0,0,Math.max(rx,ry));
+      eg.addColorStop(0,'rgba('+r+','+g+','+b+','+a+')');
+      eg.addColorStop(0.6,'rgba('+r+','+Math.floor(g*0.5)+','+b+','+(a*0.6)+')');
+      eg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=eg;
+
+      ctx.beginPath();
+      ctx.ellipse(0,0,Math.max(0.001,rx),Math.max(0.001,ry),0,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  // Secondary hot spots — smaller glowing pools scattered around
+  for(let h=0; h<9; h++) {
+    const hx = W*(0.08 + (h*0.13 + Math.sin(h*2.1))*0.85);
+    const hy = H*(0.1 + (h*0.17 + Math.cos(h*1.7))*0.8);
+    const hr = (W*0.04 + Math.sin(frame*0.009+h)*W*0.015)*(0.4+fl*0.6);
+    const hg = ctx.createRadialGradient(hx,hy,0,hx,hy,hr);
+    hg.addColorStop(0,'rgba(255,180,30,'+(0.35+fl*0.35)+')');
+    hg.addColorStop(0.5,'rgba(200,60,5,'+(0.2+fl*0.2)+')');
+    hg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=hg;
+    ctx.beginPath(); ctx.arc(hx,hy,hr,0,Math.PI*2); ctx.fill();
+  }
+
+  // Dark cooled crust overlay — partially covers the lava
+  // Irregular dark patches that make the lava look like it's under a skin
+  for(let p=0; p<18; p++) {
+    const px = W*(0.03 + (p*0.117)%0.94);
+    const py = H*(0.05 + (p*0.137 + Math.sin(p*1.8)*0.2)%0.9);
+    const pr = W*(0.04 + Math.sin(p*2.3)*0.025);
+    const crushX = pr*(1.2+Math.sin(p)*0.6);
+    const crushY = pr*(0.7+Math.cos(p*1.3)*0.3);
+    const pg = ctx.createRadialGradient(px,py,0,px,py,Math.max(crushX,crushY));
+    pg.addColorStop(0,'rgba(6,2,1,'+(0.7+Math.sin(p)*0.2)+')');
+    pg.addColorStop(0.7,'rgba(10,4,1,0.5)');
+    pg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pg;
+    ctx.save();
+    ctx.translate(px,py);
+    ctx.scale(crushX/Math.max(crushX,crushY), crushY/Math.max(crushX,crushY));
+    ctx.beginPath(); ctx.arc(0,0,Math.max(0.001,Math.max(crushX,crushY)),0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Glowing cracks through the dark crust
+  lavaCracks.forEach(function(crack) {
+    const glowPulse = crack.glow * (0.4 + fl*0.5) *
+                      (0.7 + Math.sin(frame*0.015 + crack.phase)*0.3);
+    if(glowPulse < 0.08) return; // very dim cracks invisible
+
+    ctx.beginPath();
+    ctx.moveTo(crack.x, crack.y);
+    crack.branches.forEach(function(pt){ ctx.lineTo(pt.x, pt.y); });
+
+    // Outer glow
+    ctx.strokeStyle='rgba(200,60,5,'+(glowPulse*0.5)+')';
+    ctx.lineWidth=(crack.width*3+fl*3)*DPR;
+    ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+
+    // Inner bright crack
+    ctx.strokeStyle='rgba(255,'+(Math.floor(120+glowPulse*120))+',10,'+(glowPulse*0.85)+')';
+    ctx.lineWidth=(crack.width+fl*1.5)*DPR;
+    ctx.stroke();
+
+    // Hottest cracks get a white-yellow core
+    if(glowPulse > 0.65) {
+      ctx.strokeStyle='rgba(255,240,120,'+(glowPulse-0.5)+')';
+      ctx.lineWidth=crack.width*0.4*DPR;
+      ctx.stroke();
+    }
+  });
+
+  // Slow flowing surface motion — subtle shimmer on lava rivers
+  lavaFlows.forEach(function(river, ri) {
+    const shimT = (frame*0.004 + ri*0.8) % (Math.PI*2);
+    const sx = river.cx + Math.cos(shimT)*river.rx*0.3;
+    const sy = river.cy + Math.sin(shimT*0.7)*river.ry*0.4;
+    const sr = (river.rx*0.15)*(0.5+fl*0.5);
+    const sg = ctx.createRadialGradient(sx,sy,0,sx,sy,sr);
+    sg.addColorStop(0,'rgba(255,220,80,'+(0.2+fl*0.25)+')');
+    sg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=sg;
+    ctx.beginPath(); ctx.arc(sx,sy,Math.max(0.001,sr),0,Math.PI*2); ctx.fill();
+  });
+}
+
+// 10. MANDELBROT
+function drawMandelbrot(fl){
+  const cx=W/2,cy=H/2;
+  const zoom=1.5+fl*0.5+Math.sin(frame*0.005)*0.3;
+  const iw=Math.floor(W/4),ih=Math.floor(H/4);
+  const id=ctx.createImageData(iw,ih);
+  const spk=getSpeaker();
+  for(let px=0;px<iw;px++){
+    for(let py=0;py<ih;py++){
+      let x0=(px-iw/2)/(iw*0.25*zoom),y0=(py-ih/2)/(ih*0.25*zoom);
+      let x=0,y=0,iter=0,maxIter=40;
+      while(x*x+y*y<4&&iter<maxIter){const xt=x*x-y*y+x0;y=2*x*y+y0;x=xt;iter++;}
+      const idx=(py*iw+px)*4;
+      if(iter===maxIter){id.data[idx]=0;id.data[idx+1]=0;id.data[idx+2]=0;}
+      else{const t=iter/maxIter;
+        id.data[idx]=spk==='human'?Math.floor(t*255*fl):Math.floor(t*100*fl);
+        id.data[idx+1]=Math.floor(t*255);
+        id.data[idx+2]=spk==='human'?0:Math.floor((1-t)*200);}
+      id.data[idx+3]=200;
+    }
+  }
+  const tmp=document.createElement('canvas');tmp.width=iw;tmp.height=ih;
+  tmp.getContext('2d').putImageData(id,0,0);ctx.drawImage(tmp,0,0,W,H);
+}
+
+// ============================================================
+// 11. DNA HELIX
+// ============================================================
+function drawDNAHelix(fl) {
+  const cx=W/2, cy=H/2;
+  const spk=getSpeaker();
+  const twist = frame * 0.018;
+  const rungs = 28;
+  const helixH = H * 0.72;
+  const startY = cy - helixH/2;
+  const radius = Math.min(W,H) * 0.18 * (0.7 + fl * 0.5);
+
+  for(let i=0; i<rungs; i++) {
+    const t = i / rungs;
+    const y = startY + t * helixH;
+    const angle = t * Math.PI * 5 + twist;
+
+    const x1 = cx + Math.cos(angle) * radius;
+    const x2 = cx + Math.cos(angle + Math.PI) * radius;
+    const z1 = Math.sin(angle); // depth cue
+    const z2 = Math.sin(angle + Math.PI);
+
+    const hue1 = spk==='human' ? 20+i*2 : 140+i*1.5;
+    const hue2 = spk==='human' ? 35+i*2 : 180+i*1.5;
+    const alpha = 0.4 + fl * 0.5;
+
+    // Backbone strand 1
+    if(i > 0) {
+      const prevT = (i-1)/rungs;
+      const prevY = startY + prevT * helixH;
+      const prevAngle = prevT * Math.PI * 5 + twist;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(prevAngle)*radius, prevY);
+      ctx.lineTo(x1, y);
+      ctx.strokeStyle = 'hsla('+hue1+',100%,60%,'+alpha+')';
+      ctx.lineWidth = (2 + fl*2) * DPR;
+      ctx.stroke();
+
+      // Backbone strand 2
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(prevAngle+Math.PI)*radius, prevY);
+      ctx.lineTo(x2, y);
+      ctx.strokeStyle = 'hsla('+hue2+',90%,55%,'+alpha+')';
+      ctx.lineWidth = (2 + fl*2) * DPR;
+      ctx.stroke();
+    }
+
+    // Rungs (base pairs) — only draw when facing front
+    if(z1 > -0.2) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      const rungAlpha = (0.5 + z1 * 0.5) * (0.3 + fl * 0.6);
+      ctx.strokeStyle = spk==='human'
+        ? 'rgba(255,180,80,'+rungAlpha+')'
+        : 'rgba(0,220,255,'+rungAlpha+')';
+      ctx.lineWidth = (1 + fl) * DPR;
+      ctx.stroke();
+
+      // Node dots at strand joints
+      [x1, x2].forEach(function(nx, ni) {
+        const r = (3 + fl*3) * DPR;
+        const g = ctx.createRadialGradient(nx,y,0,nx,y,r);
+        const c = ni===0 ? hue1 : hue2;
+        g.addColorStop(0,'hsla('+c+',100%,80%,'+(0.8+fl*0.2)+')');
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=g;
+        ctx.beginPath();ctx.arc(nx,y,r,0,Math.PI*2);ctx.fill();
+      });
+    }
+  }
+}
+
+// ============================================================
+// 12. NEURAL NET
+// ============================================================
+let neuralNodes=[], neuralEdges=[], neuralFired=[];
+function initNeuralNet() {
+  neuralNodes=[];neuralEdges=[];neuralFired=[];
+  const cols=6, rows=4;
+  for(let c=0;c<cols;c++) {
+    for(let r=0;r<rows;r++) {
+      neuralNodes.push({
+        x: W*(0.15 + c*0.14 + (Math.random()-0.5)*0.06),
+        y: H*(0.2 + r*0.2 + (Math.random()-0.5)*0.05),
+        pulse: Math.random(),
+        speed: 0.01 + Math.random()*0.02,
+        layer: c
+      });
+    }
+  }
+  // Connect adjacent layers
+  neuralNodes.forEach(function(n,i){
+    neuralNodes.forEach(function(m,j){
+      if(m.layer === n.layer+1 && Math.random()>0.4) {
+        neuralEdges.push({from:i, to:j, signal:0, active:false});
+      }
+    });
+  });
+}
+
+function drawNeuralNet(fl) {
+  if(!neuralNodes.length) initNeuralNet();
+  const spk=getSpeaker();
+
+  // Fire random signals on beat
+  if(fl > 0.2 && frame%Math.max(3,Math.floor(20-fl*15))===0) {
+    const inputNodes = neuralNodes.filter(function(n){return n.layer===0;});
+    const src = inputNodes[Math.floor(Math.random()*inputNodes.length)];
+    const srcIdx = neuralNodes.indexOf(src);
+    neuralEdges.forEach(function(e){
+      if(e.from===srcIdx) { e.active=true; e.signal=0; }
+    });
+  }
+
+  // Draw edges
+  neuralEdges.forEach(function(e){
+    const a=neuralNodes[e.from], b=neuralNodes[e.to];
+    if(e.active) {
+      e.signal = Math.min(1, e.signal + 0.06*(1+fl*2));
+      if(e.signal>=1){ e.active=false;
+        // Propagate
+        const toIdx=e.to;
+        neuralEdges.forEach(function(e2){ if(e2.from===toIdx){e2.active=true;e2.signal=0;} });
+      }
+      // Signal dot traveling along edge
+      const sx=a.x+(b.x-a.x)*e.signal, sy=a.y+(b.y-a.y)*e.signal;
+      ctx.beginPath();ctx.arc(sx,sy,4*DPR,0,Math.PI*2);
+      ctx.fillStyle=spk==='human'?'rgba(255,160,60,0.9)':'rgba(0,255,180,0.9)';
+      ctx.fill();
+    }
+    const alpha = e.active ? 0.5+fl*0.4 : 0.07+fl*0.08;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle=spk==='human'?'rgba(255,140,60,'+alpha+')':'rgba(0,200,255,'+alpha+')';
+    ctx.lineWidth=DPR;ctx.stroke();
+  });
+
+  // Draw nodes
+  neuralNodes.forEach(function(n){
+    n.pulse = (n.pulse + n.speed*(1+fl*3)) % 1;
+    const glow = 0.3 + Math.sin(n.pulse*Math.PI*2)*0.3 + fl*0.4;
+    const r = (5+fl*6)*DPR;
+    const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,r*2);
+    g.addColorStop(0,spk==='human'?'rgba(255,160,60,'+glow+')':'rgba(0,255,180,'+glow+')');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(n.x,n.y,r*2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(n.x,n.y,r*0.5,0,Math.PI*2);
+    ctx.fillStyle=spk==='human'?'rgba(255,200,120,0.9)':'rgba(180,255,240,0.9)';
+    ctx.fill();
+  });
+}
+
+// ============================================================
+// 13. HEARTBEAT
+// ============================================================
+let heartHistory=[];
+function drawHeartbeat(fl) {
+  const spk=getSpeaker();
+  const cy=H/2;
+
+  // Push new amplitude sample
+  heartHistory.push(fl);
+  if(heartHistory.length > Math.floor(W/2)) heartHistory.shift();
+
+  const hue = spk==='human' ? 0 : 140;
+  const color = spk==='human' ? 'rgba(255,80,80,' : 'rgba(0,255,140,';
+
+  // Flat baseline
+  ctx.beginPath();
+  ctx.moveTo(0,cy);ctx.lineTo(W,cy);
+  ctx.strokeStyle='rgba(255,255,255,0.06)';
+  ctx.lineWidth=DPR;ctx.stroke();
+
+  // Heartbeat trace
+  ctx.beginPath();
+  heartHistory.forEach(function(v,i){
+    const x = (i/heartHistory.length)*W;
+    // ECG-style: flat with sharp spikes on beats
+    const spike = v > 0.3 ? Math.pow((v-0.3)/0.7, 1.5)*H*0.38 : v*H*0.06;
+    const y = cy - spike;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle=color+(0.7+fl*0.3)+')';
+  ctx.lineWidth=(1.5+fl*2)*DPR;
+  ctx.shadowColor=spk==='human'?'#ff5050':'#00ff8c';
+  ctx.shadowBlur=fl*20;
+  ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Glow dot at current position (right edge)
+  const latest=heartHistory[heartHistory.length-1]||0;
+  const spikeNow = latest>0.3 ? Math.pow((latest-0.3)/0.7,1.5)*H*0.38 : latest*H*0.06;
+  const dotY=cy-spikeNow;
+  const gr=ctx.createRadialGradient(W-2,dotY,0,W-2,dotY,(8+fl*12)*DPR);
+  gr.addColorStop(0,color+'0.9)');
+  gr.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gr;
+  ctx.beginPath();ctx.arc(W-2,dotY,(8+fl*12)*DPR,0,Math.PI*2);ctx.fill();
+}
+
+// ============================================================
+// 14. VOCAL CORDS
+// ============================================================
+function drawVocalCords(fl) {
+  const cx=W/2, cy=H/2;
+  const spk=getSpeaker();
+  const open = fl * 0.45; // how open the cords are
+
+  for(let side=-1; side<=1; side+=2) {
+    for(let layer=0; layer<5; layer++) {
+      const t = layer/4;
+      const hue = spk==='human' ? 15+layer*8 : 140+layer*12;
+      const yOffset = side * (H*0.04 + H*open*(0.4+t*0.3));
+      const thickness = (3-layer*0.4)*DPR*(0.5+fl*0.8);
+
+      ctx.beginPath();
+      for(let x=0; x<=W; x+=3) {
+        const p = x/W;
+        // Cords are tightest at center, wider at edges
+        const tension = Math.sin(p*Math.PI); // 0 at edges, 1 at center
+        const vibrate = Math.sin(p*Math.PI*(4+layer)+frame*0.06*(1+layer*0.3))*
+                        H*0.025*(0.3+fl*0.9)*tension;
+        const y = cy + yOffset * tension + vibrate;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle='hsla('+hue+',90%,65%,'+(0.15+fl*0.55*(1-t*0.5))+')';
+      ctx.lineWidth=thickness;ctx.stroke();
+    }
+  }
+
+  // Center glow — the glottis opening
+  const glotW = W*0.04*(0.1+fl*0.7);
+  const glotH = H*0.06*(0.05+fl*0.5);
+  const gg=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(glotW,glotH));
+  gg.addColorStop(0,spk==='human'?'rgba(255,180,80,'+(0.6+fl*0.4)+')':'rgba(80,255,200,'+(0.6+fl*0.4)+')');
+  gg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gg;
+  ctx.beginPath();ctx.ellipse(cx,cy,Math.max(0.001,glotW),Math.max(0.001,glotH),0,0,Math.PI*2);ctx.fill();
+}
+
+// ============================================================
+// 15. ATOM
+// ============================================================
+function drawAtom(fl) {
+  const cx=W/2, cy=H/2;
+  const spk=getSpeaker();
+  const nucleusR = (12+fl*14)*DPR;
+  const orbits = 3;
+
+  // Nucleus
+  const ng=ctx.createRadialGradient(cx,cy,0,cx,cy,nucleusR*2);
+  ng.addColorStop(0,spk==='human'?'rgba(255,160,60,0.95)':'rgba(100,220,255,0.95)');
+  ng.addColorStop(0.5,spk==='human'?'rgba(255,100,30,0.5)':'rgba(0,150,255,0.5)');
+  ng.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ng;
+  ctx.beginPath();ctx.arc(cx,cy,nucleusR*2,0,Math.PI*2);ctx.fill();
+
+  // Proton/neutron dots in nucleus
+  for(let p=0;p<4;p++){
+    const a=p/4*Math.PI*2+frame*0.02;
+    const pr=nucleusR*0.5;
+    ctx.beginPath();ctx.arc(cx+Math.cos(a)*pr,cy+Math.sin(a)*pr,3*DPR,0,Math.PI*2);
+    ctx.fillStyle=spk==='human'?'rgba(255,220,150,0.9)':'rgba(180,240,255,0.9)';
+    ctx.fill();
+  }
+
+  // Orbital rings + electrons
+  for(let o=0;o<orbits;o++){
+    const orbitR = Math.min(W,H)*(0.12+o*0.13)*(0.6+fl*0.5);
+    const tilt = (o*Math.PI/orbits);
+    const speed = (0.008+o*0.004)*(1+fl*2);
+    const eAngle = frame*speed + o*Math.PI*0.7;
+
+    // Draw elliptical orbit
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(tilt);
+    ctx.beginPath();
+    ctx.ellipse(0,0,Math.max(0.001,orbitR),Math.max(0.001,orbitR*0.38),0,0,Math.PI*2);
+    ctx.strokeStyle=spk==='human'?'rgba(255,140,60,'+(0.1+fl*0.18)+')':'rgba(0,200,255,'+(0.1+fl*0.18)+')';
+    ctx.lineWidth=DPR;ctx.stroke();
+
+    // Electron
+    const ex=Math.cos(eAngle)*orbitR;
+    const ey=Math.sin(eAngle)*orbitR*0.38;
+    const er=(4+fl*5)*DPR;
+    const eg=ctx.createRadialGradient(ex,ey,0,ex,ey,er*3);
+    eg.addColorStop(0,spk==='human'?'rgba(255,200,100,1)':'rgba(100,240,255,1)');
+    eg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=eg;
+    ctx.beginPath();ctx.arc(ex,ey,er*3,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+
+// ============================================================
+// 16. PROTEIN FOLD — completes Science/Bio category
+// ============================================================
+let proteinChain = [];
+function initProteinChain() {
+  proteinChain = [];
+  const segments = 40;
+  let x = W * 0.2, y = H / 2;
+  for(let i = 0; i < segments; i++) {
+    proteinChain.push({
+      x, y,
+      tx: W*(0.1 + Math.random()*0.8),
+      ty: H*(0.15 + Math.random()*0.7),
+      vx: 0, vy: 0,
+      type: i % 3 === 0 ? 'alpha' : i % 3 === 1 ? 'beta' : 'loop',
+      hue: 140 + i * 5
+    });
+    x += (Math.random()-0.5)*W*0.08;
+    y += (Math.random()-0.5)*H*0.1;
+  }
+}
+
+function drawProteinFold(fl) {
+  if(!proteinChain.length) initProteinChain();
+  const spk = getSpeaker();
+
+  // Animate segments toward folded targets — voice drives folding speed
+  proteinChain.forEach(function(seg, i) {
+    const force = 0.01 + fl * 0.06;
+    seg.vx += (seg.tx - seg.x) * force;
+    seg.vy += (seg.ty - seg.y) * force;
+    // Spring constraint to neighbors
+    if(i > 0) {
+      const prev = proteinChain[i-1];
+      const dx = seg.x - prev.x, dy = seg.y - prev.y;
+      const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+      const targetDist = Math.min(W,H) * 0.055;
+      const correction = (dist - targetDist) / dist * 0.25;
+      seg.vx -= dx * correction;
+      seg.vy -= dy * correction;
+      prev.vx += dx * correction;
+      prev.vy += dy * correction;
+    }
+    seg.vx *= 0.82; seg.vy *= 0.82;
+    seg.x += seg.vx; seg.y += seg.vy;
+  });
+
+  // Backbone ribbon
+  ctx.beginPath();
+  proteinChain.forEach(function(seg, i) {
+    if(i===0) ctx.moveTo(seg.x, seg.y); else ctx.lineTo(seg.x, seg.y);
+  });
+  ctx.strokeStyle = spk==='human'
+    ? 'rgba(255,150,60,'+(0.2+fl*0.4)+')'
+    : 'rgba(0,200,180,'+(0.2+fl*0.4)+')';
+  ctx.lineWidth = (2+fl*2)*DPR; ctx.stroke();
+
+  // Draw segment types + hydrogen bonds
+  proteinChain.forEach(function(seg, i) {
+    const hue = spk==='human' ? 20+i*3 : 160+i*2;
+    const r = (seg.type==='alpha'?7:seg.type==='beta'?5:3)*DPR*(0.6+fl*0.6);
+
+    if(seg.type==='alpha') {
+      const g=ctx.createRadialGradient(seg.x,seg.y,0,seg.x,seg.y,r*2.5);
+      g.addColorStop(0,'hsla('+hue+',100%,70%,'+(0.7+fl*0.3)+')');
+      g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(seg.x,seg.y,r*2.5,0,Math.PI*2); ctx.fill();
+    }
+    if(seg.type==='beta') {
+      ctx.save(); ctx.translate(seg.x,seg.y); ctx.rotate(Math.PI/4);
+      ctx.fillStyle='hsla('+hue+',90%,65%,'+(0.5+fl*0.4)+')';
+      ctx.fillRect(-r,-r,r*2,r*2); ctx.restore();
+    }
+    if(seg.type==='loop') {
+      ctx.beginPath(); ctx.arc(seg.x,seg.y,r,0,Math.PI*2);
+      ctx.fillStyle='hsla('+hue+',60%,55%,'+(0.3+fl*0.3)+')'; ctx.fill();
+    }
+
+    // Hydrogen bonds between nearby non-adjacent segments
+    if(i > 4) {
+      for(let j=0;j<i-3;j++){
+        const other=proteinChain[j];
+        const dx=seg.x-other.x, dy=seg.y-other.y;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist < Math.min(W,H)*0.08 && seg.type!=='loop') {
+          ctx.beginPath(); ctx.moveTo(seg.x,seg.y); ctx.lineTo(other.x,other.y);
+          ctx.strokeStyle=spk==='human'
+            ?'rgba(255,200,100,'+(0.06+fl*0.12)+')'
+            :'rgba(100,255,220,'+(0.06+fl*0.12)+')';
+          ctx.lineWidth=DPR*0.8; ctx.setLineDash([3*DPR,4*DPR]); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
+// TUNDRA — vast empty arctic landscape, voice drives the wind
+// ============================================================
+let snowParticles = [];
+let snowDrifts = [];
+let tundraInit = false;
+
+function initTundra() {
+  tundraInit = true;
+  snowParticles = [];
+  snowDrifts = [];
+
+  // Snow particles — three depth layers
+  for(let i=0; i<380; i++) {
+    const layer = Math.floor(Math.random()*3); // 0=far, 1=mid, 2=close
+    snowParticles.push({
+      x: Math.random()*W,
+      y: Math.random()*H,
+      size: (0.6 + layer*1.2 + Math.random()*1.2) * DPR,
+      speed: (0.3 + layer*0.6 + Math.random()*0.5) * DPR,
+      drift: (Math.random()-0.5)*0.8,
+      opacity: 0.2 + layer*0.25 + Math.random()*0.2,
+      layer,
+      phase: Math.random()*Math.PI*2,
+      wobble: Math.random()*0.04
+    });
+  }
+
+  // Snow drift mounds on ground — organic bezier hills
+  const numDrifts = 8;
+  for(let d=0; d<numDrifts; d++) {
+    snowDrifts.push({
+      x: W*(d/numDrifts + (Math.random()-0.5)*0.1),
+      peakY: H*(0.72 + Math.random()*0.1),
+      width: W*(0.18 + Math.random()*0.22),
+      height: H*(0.06 + Math.random()*0.1),
+      phase: Math.random()*Math.PI*2
+    });
+  }
+}
+
+function drawTundra(fl) {
+  if(!tundraInit) initTundra();
+  const spk = getSpeaker();
+
+  // Wind strength — voice drives it
+  const wind = fl * 3.5 + 0.3;
+  const windDir = Math.sin(frame*0.004)*0.4 + 0.6; // gentle left-right sway
+
+  // ── SKY ──────────────────────────────────────────────────────
+  // Cold blue-grey gradient — lighter near horizon
+  const skyGrad = ctx.createLinearGradient(0,0,0,H*0.62);
+  if(spk==='human') {
+    // Human voice — slightly warmer sky, hint of amber
+    skyGrad.addColorStop(0,'rgba(18,22,35,0.95)');
+    skyGrad.addColorStop(0.5,'rgba(35,38,52,0.9)');
+    skyGrad.addColorStop(1,'rgba(68,62,72,0.85)');
+  } else {
+    // AI voice — colder, bluer
+    skyGrad.addColorStop(0,'rgba(8,14,28,0.95)');
+    skyGrad.addColorStop(0.5,'rgba(22,32,52,0.9)');
+    skyGrad.addColorStop(1,'rgba(52,68,88,0.85)');
+  }
+  ctx.fillStyle=skyGrad; ctx.fillRect(0,0,W,H*0.65);
+
+  // Atmospheric haze near horizon — diffuse glow
+  const horizonY = H*0.62;
+  const hazeGrad = ctx.createLinearGradient(0,horizonY-H*0.12,0,horizonY+H*0.08);
+  hazeGrad.addColorStop(0,'rgba(0,0,0,0)');
+  hazeGrad.addColorStop(0.4,spk==='human'?'rgba(120,110,115,0.18)':'rgba(90,115,140,0.22)');
+  hazeGrad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=hazeGrad; ctx.fillRect(0,horizonY-H*0.12,W,H*0.2);
+
+  // Distant treeline silhouette — dark jagged line at horizon
+  ctx.beginPath();
+  ctx.moveTo(0, horizonY+H*0.01);
+  for(let x=0; x<=W; x+=W*0.012) {
+    const treeH = Math.sin(x*0.008+2.1)*H*0.018 +
+                  Math.sin(x*0.019+0.7)*H*0.012 +
+                  Math.sin(x*0.041+1.4)*H*0.006 + H*0.022;
+    ctx.lineTo(x, horizonY - treeH);
+  }
+  ctx.lineTo(W, horizonY+H*0.01);
+  ctx.closePath();
+  ctx.fillStyle = spk==='human'
+    ? 'rgba(20,16,18,0.85)'
+    : 'rgba(12,16,22,0.85)';
+  ctx.fill();
+
+  // ── SNOW GROUND ──────────────────────────────────────────────
+  // Main ground plane — flat tundra stretching to horizon
+  const groundGrad = ctx.createLinearGradient(0,horizonY,0,H);
+  groundGrad.addColorStop(0, spk==='human'?'rgba(190,182,188,0.95)':'rgba(175,188,200,0.95)');
+  groundGrad.addColorStop(0.3,'rgba(210,215,220,0.97)');
+  groundGrad.addColorStop(0.7,'rgba(228,232,235,0.98)');
+  groundGrad.addColorStop(1,'rgba(235,238,240,1)');
+  ctx.fillStyle=groundGrad;
+  ctx.fillRect(0,horizonY,W,H-horizonY);
+
+  // Ground shadow bands — subtle depth lines across tundra
+  for(let band=0; band<5; band++) {
+    const by = horizonY + (H-horizonY)*(band*0.18+0.05);
+    const bandAlpha = 0.03 + band*0.015;
+    ctx.fillStyle='rgba(140,155,170,'+bandAlpha+')';
+    ctx.fillRect(0,by,W,(H-horizonY)*0.06);
+  }
+
+  // Organic snow drifts — mounds in foreground
+  snowDrifts.forEach(function(drift) {
+    // Drifts subtly shift with wind over time
+    const driftShift = Math.sin(frame*0.003+drift.phase)*W*0.008*fl;
+    const dx = drift.x + driftShift;
+
+    ctx.beginPath();
+    ctx.moveTo(dx-drift.width*0.5, H);
+    ctx.bezierCurveTo(
+      dx-drift.width*0.45, drift.peakY+drift.height*0.3,
+      dx-drift.width*0.15, drift.peakY,
+      dx, drift.peakY
+    );
+    ctx.bezierCurveTo(
+      dx+drift.width*0.15, drift.peakY,
+      dx+drift.width*0.45, drift.peakY+drift.height*0.3,
+      dx+drift.width*0.5, H
+    );
+    ctx.closePath();
+
+    // Drift surface — slightly brighter than flat ground, blue shadow on one side
+    const driftGrad = ctx.createLinearGradient(dx-drift.width*0.5,0,dx+drift.width*0.5,0);
+    driftGrad.addColorStop(0,spk==='human'?'rgba(170,165,172,0.6)':'rgba(155,172,190,0.6)');
+    driftGrad.addColorStop(0.35,'rgba(238,242,245,0.7)');
+    driftGrad.addColorStop(0.65,'rgba(248,250,252,0.75)');
+    driftGrad.addColorStop(1,spk==='human'?'rgba(195,188,192,0.5)':'rgba(175,190,205,0.5)');
+    ctx.fillStyle=driftGrad; ctx.fill();
+  });
+
+  // Wind-blown snow surface texture — fine rippled lines across ground
+  for(let line=0; line<14; line++) {
+    const ly = horizonY + (H-horizonY)*(0.05+line*0.07);
+    const lineWind = wind * (0.3 + line*0.05);
+    ctx.beginPath();
+    for(let x=0; x<=W; x+=W*0.025) {
+      const waveY = ly +
+        Math.sin(x*0.006 + frame*lineWind*0.012 + line*0.8)*H*0.004*(0.5+fl*0.5) +
+        Math.cos(x*0.013 + frame*lineWind*0.008 + line*1.3)*H*0.002;
+      if(x===0) ctx.moveTo(x,waveY); else ctx.lineTo(x,waveY);
+    }
+    ctx.strokeStyle='rgba(160,175,185,'+(0.04+fl*0.06)+')';
+    ctx.lineWidth=(0.6+fl*0.4)*DPR; ctx.stroke();
+  }
+
+  // ── SNOW PARTICLES ───────────────────────────────────────────
+  // Draw back-to-front by layer
+  for(let layer=0; layer<3; layer++) {
+    snowParticles.filter(function(p){return p.layer===layer;}).forEach(function(p) {
+      // Move — wind pushes horizontally, wobble adds organic feel
+      const windPush = wind * windDir * p.speed * (0.5+layer*0.25);
+      p.x += windPush + Math.sin(frame*p.wobble+p.phase)*p.speed*0.4;
+      p.y += p.speed*(0.4+fl*0.3) + Math.cos(frame*p.wobble*0.7+p.phase)*p.speed*0.2;
+
+      // Wrap
+      if(p.x > W+10) p.x = -10;
+      if(p.x < -10) p.x = W+10;
+      if(p.y > H+5) { p.y = -5; p.x = Math.random()*W; }
+
+      // Don't draw below ground
+      if(p.y > horizonY + (H-horizonY)*0.85) return;
+
+      // Fade near horizon — atmospheric perspective
+      const horizonFade = Math.max(0, Math.min(1, (p.y - horizonY*0.7) / (horizonY*0.3)));
+      const alpha = p.opacity * (1 - horizonFade*0.7) * (spk==='human'?0.85:1);
+
+      // Size and blur by layer — far=tiny sharp, close=larger soft
+      if(layer===2) {
+        // Close layer — soft blurred flakes
+        const fg = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*2.5);
+        fg.addColorStop(0,'rgba(240,244,248,'+alpha+')');
+        fg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=fg;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size*2.5,0,Math.PI*2); ctx.fill();
+      } else {
+        // Far/mid — crisp small dots
+        ctx.fillStyle='rgba(220,228,235,'+alpha+')';
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+      }
+    });
+  }
+
+  // ── WIND STREAKS ─────────────────────────────────────────────
+  // Horizontal wind streaks during high voice amplitude
+  if(fl > 0.3) {
+    for(let w=0; w<Math.floor(fl*18); w++) {
+      const wy = H*(0.05 + Math.random()*0.55);
+      const wx = (Math.random()*W*1.4 - W*0.2 + frame*wind*2) % W;
+      const wlen = (W*0.04 + Math.random()*W*0.1) * fl;
+      const walpha = (0.04 + Math.random()*0.08) * fl;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx-wlen*windDir, wy + (Math.random()-0.5)*H*0.005);
+      ctx.strokeStyle='rgba(210,220,230,'+walpha+')';
+      ctx.lineWidth=(0.5+Math.random())*DPR; ctx.stroke();
+    }
+  }
+
+  // ── VOICE AURORA ─────────────────────────────────────────────
+  // When voice is strong — faint northern lights shimmer in sky
+  if(fl > 0.4) {
+    for(let a=0; a<3; a++) {
+      const ax = W*(0.2+a*0.3);
+      const aGrad = ctx.createRadialGradient(ax,H*0.2,0,ax,H*0.2,W*0.3*fl);
+      const hue = spk==='human' ? 20+a*15 : 160+a*25;
+      aGrad.addColorStop(0,'hsla('+hue+',60%,70%,'+(fl*0.06)+')');
+      aGrad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=aGrad; ctx.fillRect(0,0,W,H*0.55);
+    }
+  }
+}
+
+const carouselEl = document.getElementById('carousel');
+const dotsEl = document.getElementById('dots');
+
+MODES.forEach(function(mode,i){
+  const card=document.createElement('div');
+  card.className='mode-card'+(i===0?' active':'');
+  card.innerHTML='<span class="card-icon">'+mode.icon+'</span><span class="card-label">'+mode.name+'</span>';
+  card.addEventListener('click',function(){selectMode(i);});
+  carouselEl.appendChild(card);
+  const dot=document.createElement('div');
+  dot.className='dot'+(i===0?' active':'');
+  dotsEl.appendChild(dot);
+});
+
+// Full-width carousel — no scroll snap needed, all cards always visible
+
+function selectMode(idx){
+  currentMode=idx;
+  document.querySelectorAll('.mode-card').forEach(function(c,i){c.classList.toggle('active',i===idx);});
+  document.querySelectorAll('.dot').forEach(function(d,i){d.classList.toggle('active',i===idx);});
+  document.getElementById('mode-name').textContent=MODES[idx].name.toUpperCase();
+  const cards=carouselEl.querySelectorAll('.mode-card');
+  cards[idx].scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+  nebulaParticles=[];lavaFlows=[];lavaCracks=[];lavaInit=false;solarArcs=[];stars=[];
+  neuralNodes=[];neuralEdges=[];neuralFired=[];heartHistory=[];proteinChain=[];
+  snowParticles=[];snowDrifts=[];tundraInit=false;
+}
+
+// Cards fill full width — click or arrow keys to select
+document.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight')selectMode(Math.min(currentMode+1,MODES.length-1));
+  if(e.key==='ArrowLeft')selectMode(Math.max(currentMode-1,0));
+});
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setStatus(msg,cls){const el=document.getElementById('status');el.textContent='_ '+msg+' _';el.className=cls||'';}
+function setActiveBtn(id){
+  ['btn-demo','btn-tab','btn-mic'].forEach(function(b){
+    document.getElementById(b).classList.remove('active');
+    document.getElementById(b).classList.remove('human-active');
+  });
+  document.getElementById(id).classList.add('active');
+}
+let uiVisible=true;
+document.getElementById('toggle-ui').onclick=function(){
+  uiVisible=!uiVisible;
+  document.getElementById('ui').classList.toggle('hidden',!uiVisible);
+  document.getElementById('toggle-ui').textContent=uiVisible?'x':'=';
+};
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function loop(){
+  requestAnimationFrame(loop); frame++;
+
+  // Audio processing
+  if(audioMode==='demo'){
+    demoT+=0.04;
+    // Demo alternates between "human" and "ai" speaker every few seconds
+    const demoSpeaker = Math.floor(demoT/4)%2===0 ? 'ai' : 'human';
+    setSpeaker(demoSpeaker);
+    const d=Math.min(1,0.2+0.6*Math.abs(Math.sin(demoT*0.6))+0.2*Math.random());
+    amp+=(d-amp)*0.08;
+    for(let i=0;i<8;i++) freqBands[i]+=(Math.random()*d-freqBands[i])*0.12;
+  } else if(audioMode==='both') {
+    updateDualAudio();
+  } else if(audioMode==='mic' && micAnalyser) {
+    const raw=readAnalyser(micAnalyser,micFftData,10);
+    amp+=(raw-amp)*0.12;
+    setSpeaker(amp>SILENCE_THRESHOLD?'human':'none');
+    micAnalyser.getByteFrequencyData(micFftData);
+    const bsz=Math.floor(micFftData.length/8);
+    for(let i=0;i<8;i++){let s=0;for(let j=0;j<bsz;j++)s+=micFftData[i*bsz+j];freqBands[i]+=(Math.min(1,(s/(bsz*255))*10)-freqBands[i])*0.12;}
+  } else if(audioMode==='tab' && tabAnalyser) {
+    const raw=readAnalyser(tabAnalyser,tabFftData,14);
+    amp+=(raw-amp)*0.12;
+    setSpeaker(amp>SILENCE_THRESHOLD?'ai':'none');
+    tabAnalyser.getByteFrequencyData(tabFftData);
+    const bsz=Math.floor(tabFftData.length/8);
+    for(let i=0;i<8;i++){let s=0;for(let j=0;j<bsz;j++)s+=tabFftData[i*bsz+j];freqBands[i]+=(Math.min(1,(s/(bsz*255))*14)-freqBands[i])*0.12;}
+  } else {
+    amp+=(0.015-amp)*0.04; // breathing idle
+  }
+
+  const targetFlow=amp;
+  flowState+=(targetFlow-flowState)*0.05;
+  if(amp>0.65&&frame-lastRing>30){rings.push({r:0,alpha:1});lastRing=frame;}
+  document.getElementById('flow-fill').style.height=(flowState*100)+'%';
+  document.getElementById('mode-name').classList.toggle('active',flowState>0.15);
+
+  if(audioMode!=='none'&&flowState>0.8) setStatus('FLOW STATE : ONE','flow');
+
+  // Clear with slight trail
+  ctx.fillStyle='rgba(0,0,0,'+(0.09+(1-flowState)*0.07)+')';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw
+  MODES[currentMode].draw(flowState);
+}
+
+resize();
+loop();
+
+// Set version badge from constant
+document.getElementById('version-badge').textContent = 'VIVID ONE ' + VIVID_VERSION + ' · ' + VIVID_BUILD_DATE;
+
+if('wakeLock' in navigator){
+  navigator.wakeLock.request('screen').catch(function(){});
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible') navigator.wakeLock.request('screen').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
