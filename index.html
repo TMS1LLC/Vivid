@@ -19,25 +19,30 @@ canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
 
 /* TOP BAR */
 #topbar {
-  position:fixed; top:calc(12px + var(--safe-top)); left:0; right:0;
-  display:flex; justify-content:space-between; align-items:center;
-  padding:0 16px; z-index:20; pointer-events:none;
+  position:fixed; top:var(--safe-top); left:0; right:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:14px 20px 12px;
+  background:linear-gradient(rgba(0,8,0,0.82), rgba(0,8,0,0));
+  border-bottom:1px solid rgba(0,255,65,0.08);
+  z-index:20; pointer-events:none;
 }
 #logo {
-  font-family:'Orbitron',monospace; font-size:13px;
-  color:var(--green); letter-spacing:0.4em;
-  text-shadow:0 0 10px var(--green);
+  font-family:'Orbitron',monospace; font-size:22px;
+  color:var(--green); letter-spacing:0.45em;
+  text-shadow:0 0 18px var(--green), 0 0 40px rgba(0,255,65,0.3);
+  text-align:center;
 }
 #tagline {
-  font-family:'Share Tech Mono',monospace; font-size:9px;
-  color:rgba(0,255,65,0.4); letter-spacing:0.15em;
-  text-transform:uppercase;
+  font-family:'Share Tech Mono',monospace; font-size:11px;
+  color:rgba(0,255,65,0.38); letter-spacing:0.22em;
+  text-transform:uppercase; text-align:center; margin-top:4px;
 }
 #toggle-ui {
-  width:36px; height:36px; background:rgba(0,255,65,0.08);
-  border:1px solid rgba(0,255,65,0.3); border-radius:3px; color:var(--green);
-  font-size:16px; display:flex; align-items:center; justify-content:center;
-  cursor:pointer; z-index:20; pointer-events:all;
+  position:fixed; top:calc(18px + var(--safe-top)); right:18px;
+  width:48px; height:48px; background:rgba(0,255,65,0.07);
+  border:1px solid rgba(0,255,65,0.25); border-radius:4px; color:var(--green);
+  font-size:20px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; z-index:21; pointer-events:all;
 }
 
 /* SPEAKER INDICATOR */
@@ -79,15 +84,15 @@ canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
 }
 #mode-name {
   font-family:'Orbitron',monospace;
-  font-size:clamp(18px,4vw,42px); font-weight:700;
-  color:rgba(255,255,255,0.06); letter-spacing:0.15em;
-  transition:all 0.5s;
+  font-weight:700; color:rgba(255,255,255,0.06); letter-spacing:0.15em;
+  transition:color 0.5s, text-shadow 0.5s; /* no layout properties — prevents twitch */
+  white-space:nowrap; overflow:hidden; max-width:90vw; text-align:center;
 }
 #mode-name.active { color:#fff; text-shadow:0 0 20px var(--green), 0 0 60px rgba(0,255,65,0.3); }
 
 /* CAPTIONS */
 #captions {
-  position:fixed; bottom:185px; left:50%; transform:translateX(-50%);
+  position:fixed; bottom:340px; left:50%; transform:translateX(-50%);
   width:80%; max-width:700px; text-align:center; z-index:15; pointer-events:none;
 }
 #caption-text {
@@ -103,8 +108,8 @@ canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
 /* BOTTOM UI */
 #ui {
   position:fixed; bottom:0; left:0; right:0;
-  padding:10px 12px calc(10px + var(--safe-bottom));
-  display:flex; flex-direction:column; align-items:center; gap:8px;
+  padding:14px 16px calc(14px + var(--safe-bottom));
+  display:flex; flex-direction:column; align-items:center; gap:12px;
   background:linear-gradient(transparent, rgba(0,8,0,0.95));
   z-index:10; transition:opacity 0.5s;
 }
@@ -112,7 +117,7 @@ canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
 
 /* CAROUSEL — cover-flow */
 #carousel {
-  position:relative; width:100%; height:88px;
+  position:relative; width:100%; height:180px;
   overflow:hidden; display:flex; align-items:center; justify-content:center;
 }
 /* Fade edges — hint that more exists left & right */
@@ -124,30 +129,24 @@ canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
 #carousel::after  { right:0; background:linear-gradient(to left,  rgba(0,8,0,0.92), transparent); }
 
 .mode-card {
-  position:absolute; width:72px; height:72px; border-radius:8px;
+  position:absolute; width:148px; height:148px; border-radius:12px;
   border:1px solid rgba(0,255,65,0.2); background:rgba(0,0,0,0.05);
   cursor:pointer;
-  /* spring easing for organic feel */
   transition: transform 0.38s cubic-bezier(0.34,1.42,0.64,1),
               opacity   0.32s ease,
               box-shadow 0.3s ease,
               border-color 0.3s ease;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-  left:50%; top:50%; margin-left:-36px; margin-top:-36px; /* anchor at center */
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  left:50%; top:50%; margin-left:-74px; margin-top:-74px;
   will-change:transform,opacity;
 }
-.card-icon { font-size:22px; line-height:1; }
+.card-icon { font-size:48px; line-height:1; }
 .card-label {
-  font-size:7.5px; color:rgba(255,255,255,0.5); letter-spacing:0.07em;
+  font-size:14px; color:rgba(255,255,255,0.5); letter-spacing:0.07em;
   text-transform:uppercase; font-family:'Share Tech Mono',monospace;
-  text-align:center; padding:0 4px; transition:color 0.3s;
+  text-align:center; padding:0 8px; transition:color 0.3s;
 }
-.mode-card.active .card-label { color:#fff; font-size:8px; }
-
-/* Dots — slim position indicator */
-#dots { display:flex; justify-content:center; gap:4px; margin-top:5px; flex-wrap:wrap; max-width:220px; }
-.dot { width:3px; height:3px; border-radius:50%; background:rgba(255,255,255,0.12); transition:all 0.35s; flex-shrink:0; }
-.dot.active { width:14px; border-radius:2px; }
+.mode-card.active .card-label { color:#fff; font-size:15px; }
 
 /* Select ring — radiates on mode change */
 @keyframes selectRing {
@@ -156,19 +155,19 @@ canvas#bg { display:block; position:fixed; inset:0; z-index:0; }
 }
 .select-ring {
   position:absolute; left:50%; top:50%;
-  width:72px; height:72px; border-radius:8px;
-  border:1.5px solid var(--ring-color,#00ff41);
-  box-shadow:0 0 14px var(--ring-color,#00ff41), inset 0 0 8px var(--ring-color,#00ff41);
+  width:148px; height:148px; border-radius:12px;
+  border:2px solid var(--ring-color,#00ff41);
+  box-shadow:0 0 18px var(--ring-color,#00ff41), inset 0 0 10px var(--ring-color,#00ff41);
   pointer-events:none; z-index:25;
   animation:selectRing 0.55s cubic-bezier(0.2,0.8,0.3,1) forwards;
 }
 
-.btn-row { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+.btn-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
 button {
   background:rgba(0,255,65,0.07); border:1px solid rgba(0,255,65,0.3);
-  color:var(--green); padding:8px 16px; border-radius:3px; cursor:pointer;
-  font-size:11px; font-family:'Share Tech Mono',monospace;
-  min-height:34px; letter-spacing:0.05em; text-transform:uppercase;
+  color:var(--green); padding:14px 28px; border-radius:4px; cursor:pointer;
+  font-size:18px; font-family:'Share Tech Mono',monospace;
+  min-height:56px; letter-spacing:0.05em; text-transform:uppercase;
   transition:all 0.15s; -webkit-appearance:none;
 }
 button:hover { background:rgba(0,255,65,0.18); border-color:var(--green); }
@@ -176,7 +175,7 @@ button.active { background:rgba(0,255,65,0.22); border-color:var(--green); color
 button.human-active { background:rgba(255,140,66,0.15); border-color:var(--human); color:var(--human); box-shadow:0 0 10px rgba(255,140,66,0.3); }
 
 #status {
-  color:rgba(0,255,65,0.5); font-size:10px;
+  color:rgba(0,255,65,0.5); font-size:18px;
   font-family:'Share Tech Mono',monospace; letter-spacing:0.1em; text-transform:uppercase;
 }
 #status.live { color:var(--green); text-shadow:0 0 8px var(--green); }
@@ -187,7 +186,7 @@ button.human-active { background:rgba(255,140,66,0.15); border-color:var(--human
 /* VERSION BADGE */
 #version-badge {
   position:fixed; bottom:calc(8px + var(--safe-bottom)); left:12px;
-  font-family:'Share Tech Mono',monospace; font-size:9px;
+  font-family:'Share Tech Mono',monospace; font-size:11px;
   color:rgba(0,255,65,0.55); letter-spacing:0.12em;
   z-index:25; pointer-events:none; user-select:none;
   text-shadow:0 0 6px rgba(0,255,65,0.3);
@@ -196,10 +195,10 @@ button.human-active { background:rgba(255,140,66,0.15); border-color:var(--human
 </head>
 <body>
 <canvas id="bg"></canvas>
-<div id="version-badge">VIVID ONE v0.1.1</div>
+<div id="version-badge">VIVID ONE v0.2.8</div>
 
 <div id="topbar">
-  <div style="display:flex;flex-direction:column;gap:2px">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
     <div id="logo">VIVID ONE</div>
     <div id="tagline">The voice, made visible.</div>
   </div>
@@ -225,16 +224,15 @@ button.human-active { background:rgba(255,140,66,0.15); border-color:var(--human
 <div id="ui">
   <div style="width:100%">
     <div id="carousel"></div>
-    <div id="dots"></div>
   </div>
   <div class="btn-row">
+    <button onclick="toggleCaptions()" id="btn-cap">CC OFF</button>
     <button onclick="startDemo()" id="btn-demo">DEMO</button>
+    <button onclick="togglePiP()" id="btn-pip">⧉ MINI</button>
     <button onclick="startMic()" id="btn-mic">🎤 MY VOICE</button>
     <button onclick="startTabAudio()" id="btn-tab">TAB AUDIO</button>
-    <button onclick="toggleCaptions()" id="btn-cap">CC OFF</button>
-    <button onclick="togglePiP()" id="btn-pip">⧉ MINI</button>
   </div>
-  <div id="status">_ the voice, made visible _</div>
+  <div id="status"></div>
 </div>
 
 <script>
@@ -474,6 +472,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(resize,200);
 let audioCtx = null;
 let amp = 0, freqBands = new Array(8).fill(0);
 let audioMode = 'none', flowState = 0, demoT = 0;
+let demoSynthNodes = [], demoAnalyser = null, demoFftData = null;
 let frame = 0, rings = [], lastRing = 0;
 let currentMode = 0;
 let micStream = null, tabStream = null;
@@ -497,12 +496,78 @@ function readAnalyser(an, fft, multiplier) {
   return Math.min(1,(sum/(fft.length*255))*multiplier);
 }
 
+// ── Calibration Tone — Signature Sound (IP Design Brief §VI) ────────────────
+function buildCalibrationTone(ctx) {
+  var now = ctx.currentTime;
+  var allNodes = [];
+  var master = ctx.createGain();
+  master.gain.setValueAtTime(0, now);
+  master.gain.linearRampToValueAtTime(0.55, now + 1.5);
+  var sonarOsc = ctx.createOscillator();
+  sonarOsc.type = 'sine'; sonarOsc.frequency.value = 440;
+  var sonarEnv = ctx.createGain(); sonarEnv.gain.setValueAtTime(0, now);
+  for (var si = 0; si < 40; si++) {
+    var st = now + 0.4 + si * 2.0;
+    sonarEnv.gain.setValueAtTime(0.001, st);
+    sonarEnv.gain.linearRampToValueAtTime(0.50, st + 0.025);
+    sonarEnv.gain.exponentialRampToValueAtTime(0.001, st + 1.8);
+  }
+  sonarOsc.connect(sonarEnv); sonarEnv.connect(master); sonarOsc.start(now);
+  allNodes.push(sonarOsc, sonarEnv);
+  var vowelOsc = ctx.createOscillator();
+  vowelOsc.type = 'sawtooth'; vowelOsc.frequency.value = 220;
+  var f1 = ctx.createBiquadFilter(); f1.type='bandpass'; f1.frequency.value=800; f1.Q.value=6;
+  var f2 = ctx.createBiquadFilter(); f2.type='bandpass'; f2.frequency.value=1100; f2.Q.value=8;
+  var vowelGain = ctx.createGain();
+  for (var bi = 0; bi < 20; bi++) {
+    var bt = now + bi * 7.0;
+    vowelGain.gain.setValueAtTime(0.12, bt);
+    vowelGain.gain.linearRampToValueAtTime(0.42, bt + 3.5);
+    vowelGain.gain.linearRampToValueAtTime(0.12, bt + 7.0);
+  }
+  vowelOsc.connect(f1); vowelOsc.connect(f2);
+  f1.connect(vowelGain); f2.connect(vowelGain); vowelGain.connect(master); vowelOsc.start(now);
+  allNodes.push(vowelOsc, f1, f2, vowelGain);
+  [330, 550, 770, 990].forEach(function(freq, idx) {
+    var osc = ctx.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
+    var pLFO = ctx.createOscillator(); pLFO.type='sine'; pLFO.frequency.value=0.05+idx*0.02;
+    var pDepth = ctx.createGain(); pDepth.gain.value=freq*0.007;
+    pLFO.connect(pDepth); pDepth.connect(osc.frequency);
+    var hGain = ctx.createGain(); hGain.gain.value=0.10/(idx+1);
+    osc.connect(hGain); hGain.connect(master); osc.start(now); pLFO.start(now);
+    allNodes.push(osc, pLFO, pDepth, hGain);
+  });
+  var hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=200; hp.Q.value=0.7;
+  var lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=3000; lp.Q.value=0.7;
+  master.connect(hp); hp.connect(lp);
+  var an = ctx.createAnalyser();
+  an.fftSize=1024; an.smoothingTimeConstant=0.55; an.minDecibels=-78; an.maxDecibels=-20;
+  lp.connect(an); lp.connect(ctx.destination);
+  allNodes.push(master, hp, lp);
+  return { nodes: allNodes, an: an, fft: new Uint8Array(an.frequencyBinCount) };
+}
+
+function stopDemoSynth() {
+  demoSynthNodes.forEach(function(n) {
+    try { if (n.stop) n.stop(); } catch(e) {}
+    try { n.disconnect(); } catch(e) {}
+  });
+  demoSynthNodes = []; demoAnalyser = null; demoFftData = null;
+}
+
 function startDemo() {
-  audioMode='demo'; setStatus('SIMULATION ACTIVE','live'); setActiveBtn('btn-demo');
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  stopDemoSynth();
+  var cal = buildCalibrationTone(audioCtx);
+  demoSynthNodes = cal.nodes; demoAnalyser = cal.an; demoFftData = cal.fft;
+  audioMode = 'demo';
+  setStatus('CALIBRATION TONE · DEMO', 'live');
+  setActiveBtn('btn-demo');
   setSpeaker('ai');
 }
 
 function startMic() {
+  stopDemoSynth();
   navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})
     .then(function(stream){
       micStream = stream;
@@ -516,6 +581,7 @@ function startMic() {
 }
 
 function startTabAudio() {
+  stopDemoSynth();
   setStatus('SELECT CLAUDE TAB...','');
   navigator.mediaDevices.getDisplayMedia({
     video:{width:1,height:1},
@@ -620,7 +686,14 @@ function startCaptions() {
     clearTimeout(captionTimer);
     captionTimer=setTimeout(function(){ captionEl.classList.remove('visible'); },3000);
   };
-  recognition.onerror=function(){};
+  recognition.onerror=function(e){
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+      // mic permission denied — reset CC to OFF so button doesn't get stuck
+      captionsOn=false;
+      document.getElementById('btn-cap').textContent='CC OFF';
+      if(captionEl) captionEl.classList.remove('visible');
+    }
+  };
   recognition.onend=function(){ if(captionsOn) recognition.start(); };
   recognition.start();
 }
@@ -1752,10 +1825,9 @@ function drawTundra(fl) {
 }
 
 const carouselEl = document.getElementById('carousel');
-const dotsEl = document.getElementById('dots');
 
 // Cover-flow spacing — center-to-center px between card positions
-const CARD_SPACING = 86;
+const CARD_SPACING = 172;
 
 MODES.forEach(function(mode,i){
   const card=document.createElement('div');
@@ -1766,20 +1838,15 @@ MODES.forEach(function(mode,i){
     '<span class="card-label">'+mode.name+'</span>';
   card.addEventListener('click',function(){
     const dist = i - currentMode;
-    if(dist === 0) return; // already active
+    if(dist === 0) return;
     selectMode(i);
   });
   carouselEl.appendChild(card);
-
-  const dot=document.createElement('div');
-  dot.className='dot';
-  dotsEl.appendChild(dot);
 });
 
 // Position all cards in cover-flow layout around currentMode
 function layoutCarousel() {
   const cards = document.querySelectorAll('.mode-card');
-  const dots  = document.querySelectorAll('.dot');
   cards.forEach(function(card,i){
     const dist = i - currentMode;
     const absDist = Math.abs(dist);
@@ -1804,16 +1871,6 @@ function layoutCarousel() {
       card.style.background   = 'rgba(0,0,0,0.05)';
     }
   });
-  dots.forEach(function(d,i){
-    d.classList.toggle('active', i===currentMode);
-    if(i===currentMode){
-      d.style.background  = MODES[i].color;
-      d.style.boxShadow   = '0 0 5px '+MODES[i].color;
-    } else {
-      d.style.background  = '';
-      d.style.boxShadow   = '';
-    }
-  });
 }
 
 // ── Haptic pulse (mobile) ──────────────────────────────────
@@ -1832,12 +1889,22 @@ function fireSelectRing(color) {
   ring.addEventListener('animationend', function(){ ring.remove(); });
 }
 
+function bgNameFontSize(name) {
+  const len = name.length;
+  if (len <=  8) return 'clamp(28px,4vw,42px)';
+  if (len <= 11) return 'clamp(22px,3.2vw,36px)';
+  if (len <= 14) return 'clamp(18px,2.6vw,30px)';
+  return 'clamp(14px,2vw,24px)';
+}
+
 function selectMode(idx){
   currentMode = idx;
   layoutCarousel();
   fireSelectRing(MODES[idx].color);
   hapticPulse(14);
-  document.getElementById('mode-name').textContent = MODES[idx].name.toUpperCase();
+  const bgEl = document.getElementById('mode-name');
+  bgEl.style.fontSize = bgNameFontSize(MODES[idx].name); // set size BEFORE text — no twitch
+  bgEl.textContent = MODES[idx].name.toUpperCase();
   nebulaParticles=[];lavaFlows=[];lavaCracks=[];lavaInit=false;solarArcs=[];stars=[];
   neuralNodes=[];neuralEdges=[];neuralFired=[];heartHistory=[];proteinChain=[];
   snowParticles=[];snowDrifts=[];tundraInit=false;
@@ -1867,6 +1934,13 @@ document.addEventListener('keydown',function(e){
   if(e.key==='ArrowLeft')  selectMode(Math.max(currentMode-1,0));
 });
 
+// Scroll wheel — hover over carousel area to step
+carouselEl.addEventListener('wheel', function(e){
+  e.preventDefault();
+  if(e.deltaY > 0) selectMode(Math.min(currentMode+1, MODES.length-1));
+  else             selectMode(Math.max(currentMode-1, 0));
+}, {passive:false});
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -1893,13 +1967,24 @@ function loop(){
 
   // Audio processing
   if(audioMode==='demo'){
-    demoT+=0.04;
-    // Demo alternates between "human" and "ai" speaker every few seconds
-    const demoSpeaker = Math.floor(demoT/4)%2===0 ? 'ai' : 'human';
-    setSpeaker(demoSpeaker);
-    const d=Math.min(1,0.2+0.6*Math.abs(Math.sin(demoT*0.6))+0.2*Math.random());
-    amp+=(d-amp)*0.08;
-    for(let i=0;i<8;i++) freqBands[i]+=(Math.random()*d-freqBands[i])*0.12;
+    if (demoAnalyser && demoFftData) {
+      const rawD = readAnalyser(demoAnalyser, demoFftData, 10);
+      amp += (rawD - amp) * 0.12;
+      setSpeaker(amp > SILENCE_THRESHOLD ? 'ai' : 'none');
+      demoAnalyser.getByteFrequencyData(demoFftData);
+      const bszD = Math.floor(demoFftData.length / 8);
+      for (let i = 0; i < 8; i++) {
+        let sD = 0;
+        for (let j = 0; j < bszD; j++) sD += demoFftData[i * bszD + j];
+        freqBands[i] += (Math.min(1, (sD / (bszD * 255)) * 10) - freqBands[i]) * 0.12;
+      }
+    } else {
+      demoT += 0.04;
+      setSpeaker('ai');
+      const d = Math.min(1, 0.2 + 0.6 * Math.abs(Math.sin(demoT * 0.6)) + 0.2 * Math.random());
+      amp += (d - amp) * 0.08;
+      for (let i = 0; i < 8; i++) freqBands[i] += (Math.random() * d - freqBands[i]) * 0.12;
+    }
   } else if(audioMode==='both') {
     updateDualAudio();
   } else if(audioMode==='mic' && micAnalyser) {
